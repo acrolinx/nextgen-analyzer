@@ -386,6 +386,14 @@ export async function createPRCommitSuggestions(
     const prDiff = diffResponse.data as unknown as string
     const addedLinesMap = parseGitHubDiff(prDiff)
 
+    // Log the detected added/modified lines for debugging
+    core.info('📋 Detected added/modified lines in PR:')
+    for (const [filePath, lineNumbers] of addedLinesMap.entries()) {
+      if (lineNumbers.length > 0) {
+        core.info(`  📄 ${filePath}: lines ${lineNumbers.join(', ')}`)
+      }
+    }
+
     // Get the list of files changed in this PR
     const filesResponse = await octokit.rest.pulls.listFiles({
       owner,
@@ -403,6 +411,19 @@ export async function createPRCommitSuggestions(
       validSuggestions,
       addedLinesMap
     )
+
+    // Log filtering results
+    core.info('📊 Suggestion filtering results:')
+    core.info(`  📄 Total suggestions: ${validSuggestions.length}`)
+    core.info(`  ✅ Valid suggestions: ${suggestionsForAddedLines.length}`)
+
+    if (validSuggestions.length > suggestionsForAddedLines.length) {
+      const filteredCount =
+        validSuggestions.length - suggestionsForAddedLines.length
+      core.info(
+        `  ❌ Filtered out: ${filteredCount} suggestions (not on added/modified lines)`
+      )
+    }
 
     if (suggestionsForAddedLines.length === 0) {
       core.info('No suggestions for added or modified lines in this PR')

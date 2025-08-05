@@ -34696,6 +34696,13 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
         });
         const prDiff = diffResponse.data;
         const addedLinesMap = parseGitHubDiff(prDiff);
+        // Log the detected added/modified lines for debugging
+        coreExports.info('📋 Detected added/modified lines in PR:');
+        for (const [filePath, lineNumbers] of addedLinesMap.entries()) {
+            if (lineNumbers.length > 0) {
+                coreExports.info(`  📄 ${filePath}: lines ${lineNumbers.join(', ')}`);
+            }
+        }
         // Get the list of files changed in this PR
         const filesResponse = await octokit.rest.pulls.listFiles({
             owner,
@@ -34706,6 +34713,14 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
         const validSuggestions = suggestions.filter((suggestion) => prFiles.includes(suggestion.filePath));
         // Filter suggestions to only include lines that are actually added or modified in the PR
         const suggestionsForAddedLines = filterSuggestionsForAddedLines(validSuggestions, addedLinesMap);
+        // Log filtering results
+        coreExports.info('📊 Suggestion filtering results:');
+        coreExports.info(`  📄 Total suggestions: ${validSuggestions.length}`);
+        coreExports.info(`  ✅ Valid suggestions: ${suggestionsForAddedLines.length}`);
+        if (validSuggestions.length > suggestionsForAddedLines.length) {
+            const filteredCount = validSuggestions.length - suggestionsForAddedLines.length;
+            coreExports.info(`  ❌ Filtered out: ${filteredCount} suggestions (not on added/modified lines)`);
+        }
         if (suggestionsForAddedLines.length === 0) {
             coreExports.info('No suggestions for added or modified lines in this PR');
             return;
