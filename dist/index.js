@@ -34509,6 +34509,7 @@ function parseGitHubDiff(diffContent) {
     let lineNumber = 0;
     let inHunk = false;
     let hunkStartLine = 0;
+    let lastWasRemoval = false;
     for (const line of lines) {
         if (line.startsWith('diff --git')) {
             // New file section
@@ -34517,6 +34518,7 @@ function parseGitHubDiff(diffContent) {
                 currentFile = match[1];
                 addedLines.set(currentFile, []);
                 inHunk = false;
+                lastWasRemoval = false;
             }
         }
         else if (line.startsWith('@@')) {
@@ -34526,21 +34528,39 @@ function parseGitHubDiff(diffContent) {
                 hunkStartLine = parseInt(match[3], 10); // Start line in the new version
                 lineNumber = hunkStartLine;
                 inHunk = true;
+                lastWasRemoval = false;
             }
         }
         else if (line.startsWith('+') && !line.startsWith('+++')) {
-            // Added line
+            // Added line (could be new addition or modification)
             if (currentFile && addedLines.has(currentFile) && inHunk) {
                 addedLines.get(currentFile).push(lineNumber);
+                // If this follows a removal, it's a modification
+                if (lastWasRemoval) {
+                    coreExports.info(`  🔄 Detected modification at line ${lineNumber} in ${currentFile}`);
+                }
+                else {
+                    coreExports.info(`  ➕ Detected addition at line ${lineNumber} in ${currentFile}`);
+                }
             }
             lineNumber++;
+            lastWasRemoval = false;
         }
-        else if (line.startsWith('-') && !line.startsWith('---')) ;
+        else if (line.startsWith('-') && !line.startsWith('---')) {
+            // Removed line - mark that the next addition might be a modification
+            lastWasRemoval = true;
+            coreExports.info(`  ➖ Detected removal at line ${lineNumber} in ${currentFile}`);
+            // Don't increment line number for removals
+        }
         else if (line.startsWith(' ')) {
             // Context line - increment line number
             lineNumber++;
+            lastWasRemoval = false;
         }
-        else ;
+        else {
+            // Other lines (like file headers) - don't increment
+            lastWasRemoval = false;
+        }
     }
     return addedLines;
 }

@@ -124,6 +124,7 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
   let lineNumber = 0
   let inHunk = false
   let hunkStartLine = 0
+  let lastWasRemoval = false
 
   for (const line of lines) {
     if (line.startsWith('diff --git')) {
@@ -133,6 +134,7 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
         currentFile = match[1]
         addedLines.set(currentFile, [])
         inHunk = false
+        lastWasRemoval = false
       }
     } else if (line.startsWith('@@')) {
       // Hunk header - parse line numbers
@@ -141,25 +143,38 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
         hunkStartLine = parseInt(match[3], 10) // Start line in the new version
         lineNumber = hunkStartLine
         inHunk = true
+        lastWasRemoval = false
       }
     } else if (line.startsWith('+') && !line.startsWith('+++')) {
-      // Added line
+      // Added line (could be new addition or modification)
       if (currentFile && addedLines.has(currentFile) && inHunk) {
         addedLines.get(currentFile)!.push(lineNumber)
+
+        // If this follows a removal, it's a modification
+        if (lastWasRemoval) {
+          core.info(
+            `  🔄 Detected modification at line ${lineNumber} in ${currentFile}`
+          )
+        } else {
+          core.info(
+            `  ➕ Detected addition at line ${lineNumber} in ${currentFile}`
+          )
+        }
       }
       lineNumber++
+      lastWasRemoval = false
     } else if (line.startsWith('-') && !line.startsWith('---')) {
-      // Removed line - don't increment line number
-      // But we'll treat the next addition as a modification
+      // Removed line - mark that the next addition might be a modification
+      lastWasRemoval = true
+      core.info(`  ➖ Detected removal at line ${lineNumber} in ${currentFile}`)
+      // Don't increment line number for removals
     } else if (line.startsWith(' ')) {
       // Context line - increment line number
       lineNumber++
+      lastWasRemoval = false
     } else {
       // Other lines (like file headers) - don't increment
-      if (inHunk) {
-        // If we're in a hunk, this might be a modification
-        // The next addition will be treated as a modification
-      }
+      lastWasRemoval = false
     }
   }
 
