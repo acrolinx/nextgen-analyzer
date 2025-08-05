@@ -39,7 +39,7 @@ function generateDiff(
 }
 
 /**
- * Convert diff to file-level suggestion (entire rewritten content)
+ * Create file-level suggestion (entire rewritten content)
  */
 function createFileSuggestion(
   originalContent: string,
@@ -47,14 +47,6 @@ function createFileSuggestion(
 ): string {
   // Return the entire rewritten content as the suggestion
   return rewrittenContent
-}
-
-/**
- * Find the line number where the suggestion should be applied
- */
-function findSuggestionLineNumber(): number {
-  // Since we're suggesting the entire file content, always start from line 1
-  return 1
 }
 
 /**
@@ -94,11 +86,17 @@ export async function createCommitSuggestions(
         continue
       }
 
-      // Find line number for suggestion
-      const lineNumber = findSuggestionLineNumber()
+      // Find line number for suggestion - always start at line 1 for file-level suggestions
+      const lineNumber = 1
 
       core.info(
         `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
+      )
+
+      // Debug: Log the first few lines of the suggestion
+      const suggestionLines = suggestion.split('\n')
+      core.info(
+        `Suggestion preview for ${result.filePath}: ${suggestionLines.slice(0, 3).join(' | ')}`
       )
 
       suggestions.push({
@@ -245,7 +243,9 @@ async function updateSuggestionComment(
       comment_id: commentId,
       body: `\`\`\`suggestion\n${suggestion}\n\`\`\``
     })
-    core.info(`✅ Updated existing suggestion for comment ${commentId}`)
+    core.info(
+      `✅ Updated existing suggestion for comment ${commentId} at line 1`
+    )
   } catch (error) {
     core.warning(`Failed to update suggestion comment ${commentId}: ${error}`)
   }
@@ -360,11 +360,14 @@ export async function createPRCommitSuggestions(
 
       const comments = newSuggestions.map((suggestion) => ({
         path: suggestion.filePath,
-        position: suggestion.lineNumber,
+        position: 1, // Always start at line 1 for file-level suggestions
         body: `\`\`\`suggestion\n${suggestion.suggestion}\n\`\`\``
       }))
 
       core.info(`Comment details: ${JSON.stringify(comments, null, 2)}`)
+      core.info(
+        `Creating review with ${newSuggestions.length} suggestions at line 1`
+      )
 
       const review = await octokit.rest.pulls.createReview({
         owner,

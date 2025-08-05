@@ -34435,18 +34435,11 @@ function generateDiff(originalContent, rewrittenContent) {
         .join('');
 }
 /**
- * Convert diff to file-level suggestion (entire rewritten content)
+ * Create file-level suggestion (entire rewritten content)
  */
 function createFileSuggestion(originalContent, rewrittenContent) {
     // Return the entire rewritten content as the suggestion
     return rewrittenContent;
-}
-/**
- * Find the line number where the suggestion should be applied
- */
-function findSuggestionLineNumber() {
-    // Since we're suggesting the entire file content, always start from line 1
-    return 1;
 }
 /**
  * Create commit suggestions from Acrolinx analysis results
@@ -34475,9 +34468,12 @@ async function createCommitSuggestions(results) {
             if (!suggestion.trim()) {
                 continue;
             }
-            // Find line number for suggestion
-            const lineNumber = findSuggestionLineNumber();
+            // Find line number for suggestion - always start at line 1 for file-level suggestions
+            const lineNumber = 1;
             coreExports.info(`Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`);
+            // Debug: Log the first few lines of the suggestion
+            const suggestionLines = suggestion.split('\n');
+            coreExports.info(`Suggestion preview for ${result.filePath}: ${suggestionLines.slice(0, 3).join(' | ')}`);
             suggestions.push({
                 filePath: result.filePath,
                 originalContent,
@@ -34583,7 +34579,7 @@ async function updateSuggestionComment(octokit, owner, repo, prNumber, commentId
             comment_id: commentId,
             body: `\`\`\`suggestion\n${suggestion}\n\`\`\``
         });
-        coreExports.info(`✅ Updated existing suggestion for comment ${commentId}`);
+        coreExports.info(`✅ Updated existing suggestion for comment ${commentId} at line 1`);
     }
     catch (error) {
         coreExports.warning(`Failed to update suggestion comment ${commentId}: ${error}`);
@@ -34655,10 +34651,11 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
             coreExports.info(`Creating ${newSuggestions.length} new suggestions`);
             const comments = newSuggestions.map((suggestion) => ({
                 path: suggestion.filePath,
-                position: suggestion.lineNumber,
+                position: 1, // Always start at line 1 for file-level suggestions
                 body: `\`\`\`suggestion\n${suggestion.suggestion}\n\`\`\``
             }));
             coreExports.info(`Comment details: ${JSON.stringify(comments, null, 2)}`);
+            coreExports.info(`Creating review with ${newSuggestions.length} suggestions at line 1`);
             const review = await octokit.rest.pulls.createReview({
                 owner,
                 repo,
