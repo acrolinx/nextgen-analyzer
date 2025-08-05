@@ -199,6 +199,7 @@ export async function createPRCommitSuggestions(
 
       const review = await octokit.rest.pulls.createReview({
         owner,
+        event: 'REQUEST_CHANGES',
         repo,
         pull_number: prNumber,
         commit_id: headSha,
