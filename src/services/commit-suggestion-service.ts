@@ -39,14 +39,73 @@ function generateDiff(
 }
 
 /**
- * Create file-level suggestion (entire rewritten content)
+ * Convert diff to chunks of suggestions based on consecutive modifications
  */
-function createFileSuggestion(
+function diffToSuggestionChunks(diff: string): string[] {
+  const lines = diff.split('\n')
+  const chunks: string[] = []
+  let currentChunk: string[] = []
+
+  for (const line of lines) {
+    if (line.startsWith('+') && !line.startsWith('++')) {
+      // This is an addition, add to current chunk
+      currentChunk.push(line.substring(1))
+    } else if (line.startsWith('-') && !line.startsWith('--')) {
+      // This is a deletion, skip it (we only suggest additions)
+      continue
+    } else if (line.startsWith('@')) {
+      // This is a diff header, if we have a chunk, save it and start new one
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.join('\n'))
+        currentChunk = []
+      }
+    } else if (line.startsWith(' ')) {
+      // This is unchanged context, if we have a chunk, save it and start new one
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.join('\n'))
+        currentChunk = []
+      }
+    }
+  }
+
+  // Don't forget the last chunk
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk.join('\n'))
+  }
+
+  return chunks
+}
+
+/**
+ * Find line numbers for each suggestion chunk
+ */
+function findSuggestionLineNumbers(
   originalContent: string,
   rewrittenContent: string
-): string {
-  // Return the entire rewritten content as the suggestion
-  return rewrittenContent
+): number[] {
+  const originalLines = originalContent.split('\n')
+  const rewrittenLines = rewrittenContent.split('\n')
+  const lineNumbers: number[] = []
+
+  let currentLine = 1
+
+  for (
+    let i = 0;
+    i < Math.min(originalLines.length, rewrittenLines.length);
+    i++
+  ) {
+    if (originalLines[i] !== rewrittenLines[i]) {
+      lineNumbers.push(currentLine)
+    }
+    currentLine++
+  }
+
+  // If no differences found, return line 1
+  if (lineNumbers.length === 0) {
+    lineNumbers.push(1)
+  }
+
+  return lineNumbers
 }
 
 /**
@@ -79,38 +138,45 @@ export async function createCommitSuggestions(
         continue
       }
 
-      // Create file-level suggestion
-      const suggestion = createFileSuggestion(originalContent, result.rewrite)
+      // Convert diff to suggestion chunks
+      const suggestionChunks = diffToSuggestionChunks(diff)
 
-      if (!suggestion.trim()) {
+      if (suggestionChunks.length === 0) {
         continue
       }
 
-      // Find line number for suggestion - always start at line 1 for file-level suggestions
-      const lineNumber = 1
-
-      core.info(
-        `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
-      )
-
-      // Debug: Log the first few lines of the suggestion
-      const suggestionLines = suggestion.split('\n')
-      core.info(
-        `Suggestion preview for ${result.filePath}: ${suggestionLines.slice(0, 3).join(' | ')}`
-      )
-
-      suggestions.push({
-        filePath: result.filePath,
+      // Find line numbers for each chunk
+      const lineNumbers = findSuggestionLineNumbers(
         originalContent,
-        rewrittenContent: result.rewrite,
-        diff,
-        lineNumber,
-        suggestion
-      })
+        result.rewrite
+      )
 
       core.info(
-        `✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`
+        `Processing ${suggestionChunks.length} chunks for ${result.filePath}`
       )
+
+      // Create a suggestion for each chunk
+      for (let i = 0; i < suggestionChunks.length; i++) {
+        const chunk = suggestionChunks[i]
+        const lineNumber = lineNumbers[i] || lineNumbers[0] || 1
+
+        core.info(
+          `Processing chunk ${i + 1} for ${result.filePath}: line ${lineNumber}, chunk length: ${chunk.length}`
+        )
+
+        suggestions.push({
+          filePath: result.filePath,
+          originalContent,
+          rewrittenContent: result.rewrite,
+          diff,
+          lineNumber,
+          suggestion: chunk
+        })
+
+        core.info(
+          `✅ Generated chunk ${i + 1} for ${result.filePath} at line ${lineNumber}`
+        )
+      }
     } catch (error) {
       core.warning(
         `Failed to create suggestion for ${result.filePath}: ${error}`
