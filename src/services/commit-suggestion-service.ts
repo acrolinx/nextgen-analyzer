@@ -375,13 +375,16 @@ export async function createPRCommitSuggestions(
         pull_number: prNumber,
         commit_id: headSha,
         comments,
-        body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${newSuggestions.length} new suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`
+        body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${newSuggestions.length} new suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`,
+        event: 'COMMENT' // Submit the review immediately
       })
 
       if (review.status === 200) {
         core.info(
           `✅ Created ${newSuggestions.length} new suggestions for PR #${prNumber}`
         )
+        core.info(`Review ID: ${review.data.id}`)
+        core.info(`Review state: ${review.data.state}`)
       } else {
         core.error(
           `❌ Failed to create ${newSuggestions.length} new suggestions for PR #${prNumber}`

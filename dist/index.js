@@ -34662,10 +34662,13 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
                 pull_number: prNumber,
                 commit_id: headSha,
                 comments,
-                body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${newSuggestions.length} new suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`
+                body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${newSuggestions.length} new suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`,
+                event: 'COMMENT' // Submit the review immediately
             });
             if (review.status === 200) {
                 coreExports.info(`✅ Created ${newSuggestions.length} new suggestions for PR #${prNumber}`);
+                coreExports.info(`Review ID: ${review.data.id}`);
+                coreExports.info(`Review state: ${review.data.state}`);
             }
             else {
                 coreExports.error(`❌ Failed to create ${newSuggestions.length} new suggestions for PR #${prNumber}`);
