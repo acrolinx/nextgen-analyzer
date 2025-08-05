@@ -34341,6 +34341,26 @@ async function createBranchFromBase(octokit, owner, repo, branchName, baseBranch
 async function applyRewrittenFiles(octokit, owner, repo, branchName, rewrittenFiles) {
     try {
         for (const rewriteResult of rewrittenFiles) {
+            // Get the current SHA of the file from the base branch
+            let fileSha;
+            try {
+                const fileResponse = await octokit.rest.repos.getContent({
+                    owner,
+                    repo,
+                    path: rewriteResult.filePath,
+                    ref: branchName
+                });
+                if (Array.isArray(fileResponse.data)) {
+                    // This shouldn't happen for files, but handle it gracefully
+                    coreExports.warning(`Path ${rewriteResult.filePath} is a directory, skipping`);
+                    continue;
+                }
+                fileSha = fileResponse.data.sha;
+            }
+            catch {
+                // File doesn't exist yet, which is fine for new files
+                coreExports.info(`File ${rewriteResult.filePath} doesn't exist yet, creating new file`);
+            }
             // Create or update file in the branch
             await octokit.rest.repos.createOrUpdateFileContents({
                 owner,
@@ -34348,7 +34368,8 @@ async function applyRewrittenFiles(octokit, owner, repo, branchName, rewrittenFi
                 path: rewriteResult.filePath,
                 message: `Apply Acrolinx suggestions to ${rewriteResult.filePath}`,
                 content: Buffer.from(rewriteResult.rewrittenContent).toString('base64'),
-                branch: branchName
+                branch: branchName,
+                sha: fileSha // This will be undefined for new files, which is fine
             });
             coreExports.info(`✅ Applied rewrite to ${rewriteResult.filePath}`);
         }

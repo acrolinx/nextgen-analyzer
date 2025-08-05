@@ -139,6 +139,32 @@ async function applyRewrittenFiles(
 ): Promise<void> {
   try {
     for (const rewriteResult of rewrittenFiles) {
+      // Get the current SHA of the file from the base branch
+      let fileSha: string | undefined
+      try {
+        const fileResponse = await octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: rewriteResult.filePath,
+          ref: branchName
+        })
+
+        if (Array.isArray(fileResponse.data)) {
+          // This shouldn't happen for files, but handle it gracefully
+          core.warning(
+            `Path ${rewriteResult.filePath} is a directory, skipping`
+          )
+          continue
+        }
+
+        fileSha = fileResponse.data.sha
+      } catch {
+        // File doesn't exist yet, which is fine for new files
+        core.info(
+          `File ${rewriteResult.filePath} doesn't exist yet, creating new file`
+        )
+      }
+
       // Create or update file in the branch
       await octokit.rest.repos.createOrUpdateFileContents({
         owner,
@@ -146,7 +172,8 @@ async function applyRewrittenFiles(
         path: rewriteResult.filePath,
         message: `Apply Acrolinx suggestions to ${rewriteResult.filePath}`,
         content: Buffer.from(rewriteResult.rewrittenContent).toString('base64'),
-        branch: branchName
+        branch: branchName,
+        sha: fileSha // This will be undefined for new files, which is fine
       })
 
       core.info(`✅ Applied rewrite to ${rewriteResult.filePath}`)
