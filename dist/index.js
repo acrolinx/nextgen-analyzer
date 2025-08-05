@@ -34435,37 +34435,26 @@ function generateDiff(originalContent, rewrittenContent) {
         .join('');
 }
 /**
- * Convert diff to individual line suggestions
+ * Convert diff to file-level suggestion (entire rewritten content)
  */
-function diffToSuggestions(diff) {
-    const lines = diff.split('\n');
-    const suggestions = [];
-    for (const line of lines) {
-        if (line.startsWith('+') && !line.startsWith('++')) {
-            // This is an addition, create a separate suggestion for it
-            suggestions.push(line.substring(1));
-        }
-    }
-    return suggestions;
+function createFileSuggestion(originalContent, rewrittenContent) {
+    // Return the entire rewritten content as the suggestion
+    return rewrittenContent;
 }
 /**
- * Find line numbers for each suggestion
+ * Find the line number where the suggestion should be applied
  */
-function findSuggestionLineNumbers(originalContent, rewrittenContent) {
+function findSuggestionLineNumber(originalContent, rewrittenContent) {
     const originalLines = originalContent.split('\n');
     const rewrittenLines = rewrittenContent.split('\n');
-    const lineNumbers = [];
     // Find the first line that differs
     for (let i = 0; i < Math.min(originalLines.length, rewrittenLines.length); i++) {
         if (originalLines[i] !== rewrittenLines[i]) {
-            lineNumbers.push(i + 1); // GitHub uses 1-based line numbers
+            return i + 1; // GitHub uses 1-based line numbers
         }
     }
-    // If no difference found in existing lines, add line after the last line
-    if (lineNumbers.length === 0) {
-        lineNumbers.push(originalLines.length + 1);
-    }
-    return lineNumbers;
+    // If no difference found in existing lines, return the first line
+    return 1;
 }
 /**
  * Create commit suggestions from Acrolinx analysis results
@@ -34489,27 +34478,23 @@ async function createCommitSuggestions(results) {
             if (!diff.trim()) {
                 continue;
             }
-            // Convert diff to suggestions
-            const individualSuggestions = diffToSuggestions(diff);
-            if (individualSuggestions.length === 0) {
+            // Create file-level suggestion
+            const suggestion = createFileSuggestion(originalContent, result.rewrite);
+            if (!suggestion.trim()) {
                 continue;
             }
-            // Find line numbers for each suggestion
-            const lineNumbers = findSuggestionLineNumbers(originalContent, result.rewrite);
-            for (let i = 0; i < individualSuggestions.length; i++) {
-                const suggestion = individualSuggestions[i];
-                const lineNumber = lineNumbers[i];
-                coreExports.info(`Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`);
-                suggestions.push({
-                    filePath: result.filePath,
-                    originalContent,
-                    rewrittenContent: result.rewrite,
-                    diff,
-                    lineNumber,
-                    suggestion
-                });
-                coreExports.info(`✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`);
-            }
+            // Find line number for suggestion
+            const lineNumber = findSuggestionLineNumber(originalContent, result.rewrite);
+            coreExports.info(`Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`);
+            suggestions.push({
+                filePath: result.filePath,
+                originalContent,
+                rewrittenContent: result.rewrite,
+                diff,
+                lineNumber,
+                suggestion
+            });
+            coreExports.info(`✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`);
         }
         catch (error) {
             coreExports.warning(`Failed to create suggestion for ${result.filePath}: ${error}`);
@@ -34595,12 +34580,10 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
         if (existingPendingReviewId) {
             await submitPendingReview(octokit, owner, repo, prNumber, existingPendingReviewId);
         }
-        // Create suggestions in batches
-        const batchSize = 10; // GitHub API limit for review comments
-        for (let i = 0; i < suggestions.length; i += batchSize) {
-            const batch = suggestions.slice(i, i + batchSize);
-            coreExports.info(`Creating batch ${Math.floor(i / batchSize) + 1} with ${batch.length} suggestions`);
-            const comments = batch.map((suggestion) => ({
+        // Create all suggestions in a single review
+        if (suggestions.length > 0) {
+            coreExports.info(`Creating review with ${suggestions.length} suggestions`);
+            const comments = suggestions.map((suggestion) => ({
                 path: suggestion.filePath,
                 position: suggestion.lineNumber,
                 body: `**Acrolinx Suggestion**\n\n\`\`\`suggestion\n${suggestion.suggestion}\n\`\`\`\n\nThis suggestion was automatically generated by the Acrolinx Analyzer.`
@@ -34612,14 +34595,17 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
                 pull_number: prNumber,
                 commit_id: headSha,
                 comments,
-                body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${batch.length} suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`
+                body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${suggestions.length} suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`
             });
             if (review.status === 200) {
-                coreExports.info(`✅ Created ${batch.length} suggestions for PR #${prNumber}`);
+                coreExports.info(`✅ Created ${suggestions.length} suggestions for PR #${prNumber}`);
             }
             else {
-                coreExports.error(`❌ Failed to create ${batch.length} suggestions for PR #${prNumber}`);
+                coreExports.error(`❌ Failed to create ${suggestions.length} suggestions for PR #${prNumber}`);
             }
+        }
+        else {
+            coreExports.info('No suggestions to create');
         }
     }
     catch (error) {
