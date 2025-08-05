@@ -34435,61 +34435,60 @@ function generateDiff(originalContent, rewrittenContent) {
         .join('');
 }
 /**
- * Convert diff to chunks of suggestions based on consecutive modifications
+ * Convert diff to chunks of suggestions with exact line positions
  */
-function diffToSuggestionChunks(diff) {
+function diffToSuggestionChunksWithPositions(diff) {
     const lines = diff.split('\n');
     const chunks = [];
     let currentChunk = [];
+    let currentLineNumber = 1;
+    let inChunk = false;
     for (const line of lines) {
-        if (line.startsWith('+') && !line.startsWith('++')) {
+        if (line.startsWith('@@')) {
+            // Parse the diff header to get the line number
+            const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
+            if (match) {
+                currentLineNumber = parseInt(match[2], 10); // Use the + line number
+                if (currentChunk.length > 0) {
+                    chunks.push({
+                        content: currentChunk.join('\n'),
+                        lineNumber: currentLineNumber - currentChunk.length
+                    });
+                    currentChunk = [];
+                }
+                inChunk = false;
+            }
+        }
+        else if (line.startsWith('+') && !line.startsWith('++')) {
             // This is an addition, add to current chunk
             currentChunk.push(line.substring(1));
+            inChunk = true;
         }
         else if (line.startsWith('-') && !line.startsWith('--')) {
-            // This is a deletion, skip it (we only suggest additions)
-            continue;
-        }
-        else if (line.startsWith('@')) {
-            // This is a diff header, if we have a chunk, save it and start new one
-            if (currentChunk.length > 0) {
-                chunks.push(currentChunk.join('\n'));
-                currentChunk = [];
-            }
+            // This is a deletion, skip it but increment line number
+            currentLineNumber++;
         }
         else if (line.startsWith(' ')) {
-            // This is unchanged context, if we have a chunk, save it and start new one
-            if (currentChunk.length > 0) {
-                chunks.push(currentChunk.join('\n'));
+            // This is unchanged context
+            if (inChunk && currentChunk.length > 0) {
+                chunks.push({
+                    content: currentChunk.join('\n'),
+                    lineNumber: currentLineNumber - currentChunk.length
+                });
                 currentChunk = [];
+                inChunk = false;
             }
+            currentLineNumber++;
         }
     }
     // Don't forget the last chunk
     if (currentChunk.length > 0) {
-        chunks.push(currentChunk.join('\n'));
+        chunks.push({
+            content: currentChunk.join('\n'),
+            lineNumber: currentLineNumber - currentChunk.length
+        });
     }
     return chunks;
-}
-/**
- * Find line numbers for each suggestion chunk
- */
-function findSuggestionLineNumbers(originalContent, rewrittenContent) {
-    const originalLines = originalContent.split('\n');
-    const rewrittenLines = rewrittenContent.split('\n');
-    const lineNumbers = [];
-    let currentLine = 1;
-    for (let i = 0; i < Math.min(originalLines.length, rewrittenLines.length); i++) {
-        if (originalLines[i] !== rewrittenLines[i]) {
-            lineNumbers.push(currentLine);
-        }
-        currentLine++;
-    }
-    // If no differences found, return line 1
-    if (lineNumbers.length === 0) {
-        lineNumbers.push(1);
-    }
-    return lineNumbers;
 }
 /**
  * Create commit suggestions from Acrolinx analysis results
@@ -34513,28 +34512,25 @@ async function createCommitSuggestions(results) {
             if (!diff.trim()) {
                 continue;
             }
-            // Convert diff to suggestion chunks
-            const suggestionChunks = diffToSuggestionChunks(diff);
+            // Convert diff to suggestion chunks with exact positions
+            const suggestionChunks = diffToSuggestionChunksWithPositions(diff);
             if (suggestionChunks.length === 0) {
                 continue;
             }
-            // Find line numbers for each chunk
-            const lineNumbers = findSuggestionLineNumbers(originalContent, result.rewrite);
             coreExports.info(`Processing ${suggestionChunks.length} chunks for ${result.filePath}`);
-            // Create a suggestion for each chunk
+            // Create a suggestion for each chunk with exact line numbers
             for (let i = 0; i < suggestionChunks.length; i++) {
                 const chunk = suggestionChunks[i];
-                const lineNumber = lineNumbers[i] || lineNumbers[0] || 1;
-                coreExports.info(`Processing chunk ${i + 1} for ${result.filePath}: line ${lineNumber}, chunk length: ${chunk.length}`);
+                coreExports.info(`Processing chunk ${i + 1} for ${result.filePath}: line ${chunk.lineNumber}, chunk length: ${chunk.content.length}`);
                 suggestions.push({
                     filePath: result.filePath,
                     originalContent,
                     rewrittenContent: result.rewrite,
                     diff,
-                    lineNumber,
-                    suggestion: chunk
+                    lineNumber: chunk.lineNumber,
+                    suggestion: chunk.content
                 });
-                coreExports.info(`✅ Generated chunk ${i + 1} for ${result.filePath} at line ${lineNumber}`);
+                coreExports.info(`✅ Generated chunk ${i + 1} for ${result.filePath} at line ${chunk.lineNumber}`);
             }
         }
         catch (error) {
