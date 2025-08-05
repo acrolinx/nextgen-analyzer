@@ -34435,60 +34435,37 @@ function generateDiff(originalContent, rewrittenContent) {
         .join('');
 }
 /**
- * Convert diff to chunks of suggestions with exact line positions
+ * Convert diff to individual line suggestions
  */
-function diffToSuggestionChunksWithPositions(diff) {
+function diffToSuggestions(diff) {
     const lines = diff.split('\n');
-    const chunks = [];
-    let currentChunk = [];
-    let currentLineNumber = 1;
-    let inChunk = false;
+    const suggestions = [];
     for (const line of lines) {
-        if (line.startsWith('@@')) {
-            // Parse the diff header to get the line number
-            const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
-            if (match) {
-                currentLineNumber = parseInt(match[2], 10); // Use the + line number
-                if (currentChunk.length > 0) {
-                    chunks.push({
-                        content: currentChunk.join('\n'),
-                        lineNumber: currentLineNumber - currentChunk.length
-                    });
-                    currentChunk = [];
-                }
-                inChunk = false;
-            }
-        }
-        else if (line.startsWith('+') && !line.startsWith('++')) {
-            // This is an addition, add to current chunk
-            currentChunk.push(line.substring(1));
-            inChunk = true;
-        }
-        else if (line.startsWith('-') && !line.startsWith('--')) {
-            // This is a deletion, skip it but increment line number
-            currentLineNumber++;
-        }
-        else if (line.startsWith(' ')) {
-            // This is unchanged context
-            if (inChunk && currentChunk.length > 0) {
-                chunks.push({
-                    content: currentChunk.join('\n'),
-                    lineNumber: currentLineNumber - currentChunk.length
-                });
-                currentChunk = [];
-                inChunk = false;
-            }
-            currentLineNumber++;
+        if (line.startsWith('+') && !line.startsWith('++')) {
+            // This is an addition, create a separate suggestion for it
+            suggestions.push(line.substring(1));
         }
     }
-    // Don't forget the last chunk
-    if (currentChunk.length > 0) {
-        chunks.push({
-            content: currentChunk.join('\n'),
-            lineNumber: currentLineNumber - currentChunk.length
-        });
+    return suggestions;
+}
+/**
+ * Find line numbers for each suggestion
+ */
+function findSuggestionLineNumbers(originalContent, rewrittenContent) {
+    const originalLines = originalContent.split('\n');
+    const rewrittenLines = rewrittenContent.split('\n');
+    const lineNumbers = [];
+    // Find the first line that differs
+    for (let i = 0; i < Math.min(originalLines.length, rewrittenLines.length); i++) {
+        if (originalLines[i] !== rewrittenLines[i]) {
+            lineNumbers.push(i + 1); // GitHub uses 1-based line numbers
+        }
     }
-    return chunks;
+    // If no difference found in existing lines, add line after the last line
+    if (lineNumbers.length === 0) {
+        lineNumbers.push(originalLines.length + 1);
+    }
+    return lineNumbers;
 }
 /**
  * Create commit suggestions from Acrolinx analysis results
@@ -34512,25 +34489,26 @@ async function createCommitSuggestions(results) {
             if (!diff.trim()) {
                 continue;
             }
-            // Convert diff to suggestion chunks with exact positions
-            const suggestionChunks = diffToSuggestionChunksWithPositions(diff);
-            if (suggestionChunks.length === 0) {
+            // Convert diff to suggestions
+            const individualSuggestions = diffToSuggestions(diff);
+            if (individualSuggestions.length === 0) {
                 continue;
             }
-            coreExports.info(`Processing ${suggestionChunks.length} chunks for ${result.filePath}`);
-            // Create a suggestion for each chunk with exact line numbers
-            for (let i = 0; i < suggestionChunks.length; i++) {
-                const chunk = suggestionChunks[i];
-                coreExports.info(`Processing chunk ${i + 1} for ${result.filePath}: line ${chunk.lineNumber}, chunk length: ${chunk.content.length}`);
+            // Find line numbers for each suggestion
+            const lineNumbers = findSuggestionLineNumbers(originalContent, result.rewrite);
+            for (let i = 0; i < individualSuggestions.length; i++) {
+                const suggestion = individualSuggestions[i];
+                const lineNumber = lineNumbers[i];
+                coreExports.info(`Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`);
                 suggestions.push({
                     filePath: result.filePath,
                     originalContent,
                     rewrittenContent: result.rewrite,
                     diff,
-                    lineNumber: chunk.lineNumber,
-                    suggestion: chunk.content
+                    lineNumber,
+                    suggestion
                 });
-                coreExports.info(`✅ Generated chunk ${i + 1} for ${result.filePath} at line ${chunk.lineNumber}`);
+                coreExports.info(`✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`);
             }
         }
         catch (error) {
@@ -34571,67 +34549,13 @@ async function submitPendingReview(octokit, owner, repo, prNumber, reviewId) {
             repo,
             pull_number: prNumber,
             review_id: reviewId,
+            body: 'Submitted to make room for new Acrolinx suggestions',
             event: 'COMMENT'
         });
         coreExports.info(`✅ Submitted existing pending review #${reviewId}`);
     }
     catch (error) {
         coreExports.warning(`Failed to submit pending review: ${error}`);
-    }
-}
-/**
- * Find existing suggestions for the given files
- */
-async function findExistingSuggestions(octokit, owner, repo, prNumber, filePaths) {
-    try {
-        const reviews = await octokit.rest.pulls.listReviews({
-            owner,
-            repo,
-            pull_number: prNumber
-        });
-        const existingSuggestions = new Map();
-        for (const review of reviews.data) {
-            if (review.user?.login === githubExports.context.actor) {
-                // Get review comments for this review
-                const comments = await octokit.rest.pulls.listReviewComments({
-                    owner,
-                    repo,
-                    pull_number: prNumber,
-                    review_id: review.id
-                });
-                for (const comment of comments.data) {
-                    if (comment.body?.includes('```suggestion')) {
-                        const filePath = comment.path;
-                        if (filePaths.includes(filePath)) {
-                            existingSuggestions.set(filePath, comment.id);
-                        }
-                    }
-                }
-            }
-        }
-        return existingSuggestions;
-    }
-    catch (error) {
-        coreExports.warning(`Failed to find existing suggestions: ${error}`);
-        return new Map();
-    }
-}
-/**
- * Update existing suggestion comment
- */
-async function updateSuggestionComment(octokit, owner, repo, prNumber, commentId, suggestion) {
-    try {
-        await octokit.rest.pulls.updateReviewComment({
-            owner,
-            repo,
-            pull_number: prNumber,
-            comment_id: commentId,
-            body: `\`\`\`suggestion\n${suggestion}\n\`\`\``
-        });
-        coreExports.info(`✅ Updated existing suggestion for comment ${commentId} at line 1`);
-    }
-    catch (error) {
-        coreExports.warning(`Failed to update suggestion comment ${commentId}: ${error}`);
     }
 }
 /**
@@ -34671,60 +34595,31 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
         if (existingPendingReviewId) {
             await submitPendingReview(octokit, owner, repo, prNumber, existingPendingReviewId);
         }
-        // Find existing suggestions
-        const filePaths = suggestions.map((s) => s.filePath);
-        const existingSuggestions = await findExistingSuggestions(octokit, owner, repo, prNumber, filePaths);
-        // Separate suggestions into new and existing
-        const newSuggestions = [];
-        const updatePromises = [];
-        for (const suggestion of suggestions) {
-            const existingCommentId = existingSuggestions.get(suggestion.filePath);
-            if (existingCommentId) {
-                // Update existing suggestion
-                updatePromises.push(updateSuggestionComment(octokit, owner, repo, prNumber, existingCommentId, suggestion.suggestion));
-                coreExports.info(`🔄 Will update existing suggestion for ${suggestion.filePath}`);
-            }
-            else {
-                // Create new suggestion
-                newSuggestions.push(suggestion);
-                coreExports.info(`➕ Will create new suggestion for ${suggestion.filePath}`);
-            }
-        }
-        // Update existing suggestions
-        if (updatePromises.length > 0) {
-            coreExports.info(`Updating ${updatePromises.length} existing suggestions`);
-            await Promise.all(updatePromises);
-        }
-        // Create new suggestions
-        if (newSuggestions.length > 0) {
-            coreExports.info(`Creating ${newSuggestions.length} new suggestions`);
-            const comments = newSuggestions.map((suggestion) => ({
+        // Create suggestions in batches
+        const batchSize = 10; // GitHub API limit for review comments
+        for (let i = 0; i < suggestions.length; i += batchSize) {
+            const batch = suggestions.slice(i, i + batchSize);
+            coreExports.info(`Creating batch ${Math.floor(i / batchSize) + 1} with ${batch.length} suggestions`);
+            const comments = batch.map((suggestion) => ({
                 path: suggestion.filePath,
-                position: 1, // Always start at line 1 for file-level suggestions
-                body: `\`\`\`suggestion\n${suggestion.suggestion}\n\`\`\``
+                position: suggestion.lineNumber,
+                body: `**Acrolinx Suggestion**\n\n\`\`\`suggestion\n${suggestion.suggestion}\n\`\`\`\n\nThis suggestion was automatically generated by the Acrolinx Analyzer.`
             }));
             coreExports.info(`Comment details: ${JSON.stringify(comments, null, 2)}`);
-            coreExports.info(`Creating review with ${newSuggestions.length} suggestions at line 1`);
             const review = await octokit.rest.pulls.createReview({
                 owner,
                 repo,
                 pull_number: prNumber,
                 commit_id: headSha,
                 comments,
-                body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${newSuggestions.length} new suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`,
-                event: 'COMMENT' // Submit the review immediately
+                body: `🤖 Acrolinx Analysis Suggestions\n\nThis review contains ${batch.length} suggestion(s) from the Acrolinx Analyzer for the **${eventType}** event.`
             });
             if (review.status === 200) {
-                coreExports.info(`✅ Created ${newSuggestions.length} new suggestions for PR #${prNumber}`);
-                coreExports.info(`Review ID: ${review.data.id}`);
-                coreExports.info(`Review state: ${review.data.state}`);
+                coreExports.info(`✅ Created ${batch.length} suggestions for PR #${prNumber}`);
             }
             else {
-                coreExports.error(`❌ Failed to create ${newSuggestions.length} new suggestions for PR #${prNumber}`);
+                coreExports.error(`❌ Failed to create ${batch.length} suggestions for PR #${prNumber}`);
             }
-        }
-        else {
-            coreExports.info('No new suggestions to create');
         }
     }
     catch (error) {
