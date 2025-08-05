@@ -196,7 +196,10 @@ improvements with a single click.
 
 - **Automatic Review Management**: Existing pending reviews are automatically
   submitted to make room for new ones
-- **Batch Processing**: Handles multiple suggestions efficiently
+- **Single Review Creation**: All suggestions are created in one pending review
+  for better user experience
+- **Individual Line Suggestions**: Each modified line gets its own suggestion
+  for granular control
 - **Error Handling**: Graceful handling of API limits and permission issues
 - **Event-Specific**: Only creates suggestions for pull request events
 
