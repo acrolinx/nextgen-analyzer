@@ -429,12 +429,14 @@ export async function createPRCommitSuggestions(
 
     const prFiles = filesResponse.data.map((file) => file.filename)
 
-    // Create suggestions only for lines that are actually changed in the PR
-    // We need to convert the existing suggestions to the new format
-    const suggestionsForChangedLines = await createCommitSuggestions(
-      [], // We'll handle this differently - use the existing suggestions
-      addedLinesMap
-    )
+    // Filter existing suggestions to only include lines that are actually changed in the PR
+    const suggestionsForChangedLines = suggestions.filter((suggestion) => {
+      const addedLines = addedLinesMap.get(suggestion.filePath)
+      if (!addedLines) {
+        return false // File not in PR
+      }
+      return addedLines.includes(suggestion.lineNumber)
+    })
 
     // Log filtering results
     core.info('📊 Suggestion filtering results:')

@@ -34563,31 +34563,7 @@ async function createCommitSuggestions(results, prChangedLines) {
                 continue;
             }
             // If we have PR changed lines, only process suggestions for those lines
-            if (prChangedLines && prChangedLines.has(result.filePath)) {
-                const changedLines = prChangedLines.get(result.filePath);
-                coreExports.info(`📋 Processing suggestions for changed lines: ${changedLines.join(', ')} in ${result.filePath}`);
-                // For each changed line, create a suggestion based on Acrolinx's rewrite
-                for (const lineNumber of changedLines) {
-                    const originalLines = originalContent.split('\n');
-                    const rewrittenLines = result.rewrite.split('\n');
-                    if (lineNumber <= originalLines.length &&
-                        lineNumber <= rewrittenLines.length) {
-                        const originalLine = originalLines[lineNumber - 1] || '';
-                        const rewrittenLine = rewrittenLines[lineNumber - 1] || '';
-                        if (originalLine !== rewrittenLine) {
-                            suggestions.push({
-                                filePath: result.filePath,
-                                originalContent,
-                                rewrittenContent: result.rewrite,
-                                diff: `- ${originalLine}\n+ ${rewrittenLine}`,
-                                lineNumber,
-                                suggestion: rewrittenLine
-                            });
-                            coreExports.info(`✅ Created suggestion for ${result.filePath} at line ${lineNumber}`);
-                        }
-                    }
-                }
-            }
+            if (prChangedLines && prChangedLines.has(result.filePath)) ;
             else {
                 // Fallback to original logic if no PR changed lines provided
                 coreExports.info(`📋 No PR changed lines info for ${result.filePath}, using original logic`);
@@ -34726,10 +34702,14 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
             pull_number: prNumber
         });
         const prFiles = filesResponse.data.map((file) => file.filename);
-        // Create suggestions only for lines that are actually changed in the PR
-        // We need to convert the existing suggestions to the new format
-        const suggestionsForChangedLines = await createCommitSuggestions([], // We'll handle this differently - use the existing suggestions
-        addedLinesMap);
+        // Filter existing suggestions to only include lines that are actually changed in the PR
+        const suggestionsForChangedLines = suggestions.filter((suggestion) => {
+            const addedLines = addedLinesMap.get(suggestion.filePath);
+            if (!addedLines) {
+                return false; // File not in PR
+            }
+            return addedLines.includes(suggestion.lineNumber);
+        });
         // Log filtering results
         coreExports.info('📊 Suggestion filtering results:');
         coreExports.info(`  📄 Total suggestions: ${suggestions.length}`);
