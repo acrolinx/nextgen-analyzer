@@ -37,6 +37,11 @@ inputs:
     description: Add commit status updates (default is true)
     required: false
     default: 'true'
+  rewrite:
+    description:
+      Enable Acrolinx rewrite suggestions for pull requests (default is true)
+    required: false
+    default: 'true'
 
 # Define your outputs here.
 outputs:

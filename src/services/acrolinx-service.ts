@@ -6,11 +6,17 @@ import * as core from '@actions/core'
 import {
   styleCheck,
   styleBatchCheckRequests,
+  styleRewrite,
   Config,
   StyleAnalysisReq,
   StyleScores
 } from '@acrolinx/typescript-sdk'
-import { AcrolinxAnalysisResult, AnalysisOptions } from '../types/index.js'
+import {
+  AcrolinxAnalysisResult,
+  AcrolinxRewriteResult,
+  AnalysisOptions,
+  RewriteOptions
+} from '../types/index.js'
 import { getFileBasename } from '../utils/file-utils.js'
 import { calculateScoreSummary, ScoreSummary } from '../utils/score-utils.js'
 import { processFileReading } from '../utils/batch-utils.js'
@@ -211,4 +217,85 @@ export function getAnalysisSummary(
     averageStyleGuideScore: summary.averageStyleGuideScore,
     averageTerminologyScore: summary.averageTerminologyScore
   }
+}
+
+/**
+ * Run Acrolinx rewrite on a single file
+ */
+export async function rewriteFile(
+  filePath: string,
+  content: string,
+  options: RewriteOptions,
+  config: Config
+): Promise<AcrolinxRewriteResult | null> {
+  try {
+    core.info(`🔄 Running Acrolinx rewrite on: ${filePath}`)
+
+    const request: StyleAnalysisReq = {
+      content,
+      dialect: options.dialect,
+      tone: options.tone,
+      style_guide: options.styleGuide,
+      documentName: getFileBasename(filePath)
+    }
+
+    const result = await styleRewrite(request, config)
+
+    if (result.status !== 'completed') {
+      core.error(`Failed to rewrite ${filePath}: No valid result returned`)
+      return null
+    }
+
+    if (!result.rewrite) {
+      core.error(`Failed to rewrite ${filePath}: No rewrite content returned`)
+      return null
+    }
+
+    return {
+      filePath,
+      originalContent: content,
+      rewrittenContent: result.rewrite,
+      result: result.scores,
+      timestamp: new Date().toISOString()
+    }
+  } catch (error) {
+    core.error(`Failed to run Acrolinx rewrite on ${filePath}: ${error}`)
+    return null
+  }
+}
+
+/**
+ * Run Acrolinx rewrite on multiple files
+ *
+ * Uses sequential processing for all files since batch rewrite is not available
+ */
+export async function rewriteFiles(
+  files: string[],
+  options: RewriteOptions,
+  config: Config,
+  readFileContent: (filePath: string) => Promise<string | null>
+): Promise<AcrolinxRewriteResult[]> {
+  if (files.length === 0) {
+    return []
+  }
+
+  core.info(`🚀 Starting rewrite of ${files.length} files`)
+
+  const results: AcrolinxRewriteResult[] = []
+
+  // Process files sequentially
+  for (const filePath of files) {
+    const content = await readFileContent(filePath)
+    if (content) {
+      const result = await rewriteFile(filePath, content, options, config)
+      if (result) {
+        results.push(result)
+      }
+    }
+  }
+
+  core.info(
+    `✅ Rewrite completed: ${results.length}/${files.length} files processed successfully`
+  )
+  return results
 }

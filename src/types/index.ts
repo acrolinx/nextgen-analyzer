@@ -38,6 +38,17 @@ export interface AcrolinxAnalysisResult {
 }
 
 /**
+ * Interface for Acrolinx rewrite result
+ */
+export interface AcrolinxRewriteResult {
+  filePath: string
+  originalContent: string
+  rewrittenContent: string
+  result: StyleScores
+  timestamp: string
+}
+
+/**
  * Interface for event information
  */
 export interface EventInfo {
@@ -65,12 +76,22 @@ export interface ActionConfig {
   styleGuide: string
   githubToken: string
   addCommitStatus: boolean
+  enableRewrite: boolean
 }
 
 /**
  * Analysis options for Acrolinx
  */
 export interface AnalysisOptions {
+  dialect: string
+  tone: string
+  styleGuide: string
+}
+
+/**
+ * Rewrite options for Acrolinx
+ */
+export interface RewriteOptions {
   dialect: string
   tone: string
   styleGuide: string

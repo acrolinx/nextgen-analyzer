@@ -210,7 +210,8 @@ describe('Action Config', () => {
         styleGuide: 'chicago',
         acrolinxApiToken: 'acrolinx-token',
         githubToken: 'github-token',
-        addCommitStatus: true
+        addCommitStatus: true,
+        enableRewrite: true
       })
     })
 
@@ -227,7 +228,8 @@ describe('Action Config', () => {
         styleGuide: 'ap',
         acrolinxApiToken: 'env-acrolinx-token',
         githubToken: 'env-github-token',
-        addCommitStatus: true
+        addCommitStatus: true,
+        enableRewrite: true
       })
     })
 
@@ -264,7 +266,8 @@ describe('Action Config', () => {
         styleGuide: 'ap',
         acrolinxApiToken: 'acrolinx-token',
         githubToken: 'github-token',
-        addCommitStatus: true
+        addCommitStatus: true,
+        enableRewrite: true
       })
     })
 

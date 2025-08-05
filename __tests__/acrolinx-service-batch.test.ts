@@ -12,6 +12,7 @@ jest.unstable_mockModule('@actions/core', () => core)
 jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
   styleCheck: jest.fn(),
   styleBatchCheckRequests: jest.fn(),
+  styleRewrite: jest.fn(),
   Config: jest.fn()
 }))
 

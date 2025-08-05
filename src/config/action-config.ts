@@ -3,7 +3,11 @@
  */
 
 import * as core from '@actions/core'
-import { ActionConfig, AnalysisOptions } from '../types/index.js'
+import {
+  ActionConfig,
+  AnalysisOptions,
+  RewriteOptions
+} from '../types/index.js'
 import {
   INPUT_NAMES,
   ENV_VARS,
@@ -35,6 +39,7 @@ export function getActionConfig(): ActionConfig {
   )
 
   const addCommitStatus = getBooleanInput(INPUT_NAMES.ADD_COMMIT_STATUS, true)
+  const enableRewrite = getBooleanInput(INPUT_NAMES.REWRITE, true)
 
   return {
     acrolinxApiToken,
@@ -42,7 +47,8 @@ export function getActionConfig(): ActionConfig {
     dialect,
     tone,
     styleGuide,
-    addCommitStatus
+    addCommitStatus,
+    enableRewrite
   }
 }
 
@@ -50,6 +56,17 @@ export function getActionConfig(): ActionConfig {
  * Get analysis options from configuration
  */
 export function getAnalysisOptions(config: ActionConfig): AnalysisOptions {
+  return {
+    dialect: config.dialect,
+    tone: config.tone,
+    styleGuide: config.styleGuide
+  }
+}
+
+/**
+ * Get rewrite options from configuration
+ */
+export function getRewriteOptions(config: ActionConfig): RewriteOptions {
   return {
     dialect: config.dialect,
     tone: config.tone,
