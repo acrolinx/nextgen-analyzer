@@ -191,7 +191,6 @@ async function submitPendingReview(
       repo,
       pull_number: prNumber,
       review_id: reviewId,
-      body: 'Submitted to make room for new Acrolinx suggestions',
       event: 'COMMENT'
     })
     core.info(`✅ Submitted existing pending review #${reviewId}`)

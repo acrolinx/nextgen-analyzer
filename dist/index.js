@@ -34534,7 +34534,6 @@ async function submitPendingReview(octokit, owner, repo, prNumber, reviewId) {
             repo,
             pull_number: prNumber,
             review_id: reviewId,
-            body: 'Submitted to make room for new Acrolinx suggestions',
             event: 'COMMENT'
         });
         coreExports.info(`✅ Submitted existing pending review #${reviewId}`);
