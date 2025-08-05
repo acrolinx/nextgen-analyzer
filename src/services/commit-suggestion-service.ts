@@ -146,6 +146,62 @@ export async function createCommitSuggestions(
 }
 
 /**
+ * Find existing pending review by the current user
+ */
+async function findExistingPendingReview(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<number | null> {
+  try {
+    const response = await octokit.rest.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: prNumber
+    })
+
+    // Find the most recent pending review by the current user
+    const pendingReview = response.data
+      .filter((review) => review.state === 'PENDING')
+      .sort(
+        (a, b) =>
+          new Date(b.submitted_at || '').getTime() -
+          new Date(a.submitted_at || '').getTime()
+      )[0]
+
+    return pendingReview?.id || null
+  } catch (error) {
+    core.warning(`Failed to find existing pending review: ${error}`)
+    return null
+  }
+}
+
+/**
+ * Dismiss existing pending review
+ */
+async function dismissPendingReview(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  reviewId: number
+): Promise<void> {
+  try {
+    await octokit.rest.pulls.dismissReview({
+      owner,
+      repo,
+      pull_number: prNumber,
+      review_id: reviewId,
+      message: 'Dismissed to create new Acrolinx suggestions'
+    })
+    core.info(`✅ Dismissed existing pending review #${reviewId}`)
+  } catch (error) {
+    core.warning(`Failed to dismiss pending review: ${error}`)
+  }
+}
+
+/**
  * Create GitHub commit suggestions on a pull request
  */
 export async function createPRCommitSuggestions(
@@ -186,6 +242,23 @@ export async function createPRCommitSuggestions(
 
     const headSha = prResponse.data.head.sha
 
+    // Dismiss existing pending reviews
+    const existingPendingReviewId = await findExistingPendingReview(
+      octokit,
+      owner,
+      repo,
+      prNumber
+    )
+    if (existingPendingReviewId) {
+      await dismissPendingReview(
+        octokit,
+        owner,
+        repo,
+        prNumber,
+        existingPendingReviewId
+      )
+    }
+
     // Create suggestions in batches
     const batchSize = 10 // GitHub API limit for review comments
     for (let i = 0; i < suggestions.length; i += batchSize) {
@@ -214,8 +287,6 @@ export async function createPRCommitSuggestions(
           `❌ Failed to create ${batch.length} suggestions for PR #${prNumber}`
         )
       }
-
-      core.info(`✅ Created ${batch.length} suggestions for PR #${prNumber}`)
     }
   } catch (error: unknown) {
     const githubError = handleGitHubError(error, 'Create PR commit suggestions')

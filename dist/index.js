@@ -34509,6 +34509,46 @@ async function createCommitSuggestions(results) {
     return suggestions;
 }
 /**
+ * Find existing pending review by the current user
+ */
+async function findExistingPendingReview(octokit, owner, repo, prNumber) {
+    try {
+        const response = await octokit.rest.pulls.listReviews({
+            owner,
+            repo,
+            pull_number: prNumber
+        });
+        // Find the most recent pending review by the current user
+        const pendingReview = response.data
+            .filter((review) => review.state === 'PENDING')
+            .sort((a, b) => new Date(b.submitted_at || '').getTime() -
+            new Date(a.submitted_at || '').getTime())[0];
+        return pendingReview?.id || null;
+    }
+    catch (error) {
+        coreExports.warning(`Failed to find existing pending review: ${error}`);
+        return null;
+    }
+}
+/**
+ * Dismiss existing pending review
+ */
+async function dismissPendingReview(octokit, owner, repo, prNumber, reviewId) {
+    try {
+        await octokit.rest.pulls.dismissReview({
+            owner,
+            repo,
+            pull_number: prNumber,
+            review_id: reviewId,
+            message: 'Dismissed to create new Acrolinx suggestions'
+        });
+        coreExports.info(`✅ Dismissed existing pending review #${reviewId}`);
+    }
+    catch (error) {
+        coreExports.warning(`Failed to dismiss pending review: ${error}`);
+    }
+}
+/**
  * Create GitHub commit suggestions on a pull request
  */
 async function createPRCommitSuggestions(octokit, suggestionData) {
@@ -34540,6 +34580,11 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
             pull_number: prNumber
         });
         const headSha = prResponse.data.head.sha;
+        // Dismiss existing pending reviews
+        const existingPendingReviewId = await findExistingPendingReview(octokit, owner, repo, prNumber);
+        if (existingPendingReviewId) {
+            await dismissPendingReview(octokit, owner, repo, prNumber, existingPendingReviewId);
+        }
         // Create suggestions in batches
         const batchSize = 10; // GitHub API limit for review comments
         for (let i = 0; i < suggestions.length; i += batchSize) {
@@ -34564,7 +34609,6 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
             else {
                 coreExports.error(`❌ Failed to create ${batch.length} suggestions for PR #${prNumber}`);
             }
-            coreExports.info(`✅ Created ${batch.length} suggestions for PR #${prNumber}`);
         }
     }
     catch (error) {

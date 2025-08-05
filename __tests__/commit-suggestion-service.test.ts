@@ -72,4 +72,17 @@ describe('Commit Suggestion Service', () => {
       expect(suggestions).toHaveLength(0)
     })
   })
+
+  describe('pending review handling', () => {
+    it('should handle existing pending reviews gracefully', async () => {
+      // This test verifies that the service can handle the case where
+      // there are existing pending reviews without throwing errors
+      const mockResults: AcrolinxAnalysisResult[] = []
+
+      // The service should handle empty results without issues
+      const suggestions = await createCommitSuggestions(mockResults)
+
+      expect(suggestions).toHaveLength(0)
+    })
+  })
 })

@@ -119,14 +119,16 @@ as action inputs or environment variables:
 
 ## Inputs
 
-| Input               | Description                                                                                           | Required | Default            |
-| ------------------- | ----------------------------------------------------------------------------------------------------- | -------- | ------------------ |
-| `acrolinx_token`    | Acrolinx API token for style checking. Can also be provided via `ACROLINX_TOKEN` environment variable | Yes      | -                  |
-| `github_token`      | GitHub token for API access. Can also be provided via `GITHUB_TOKEN` environment variable             | Yes      | -                  |
-| `dialect`           | Language dialect for analysis (e.g., `american_english`, `british_english`)                           | No       | `american_english` |
-| `tone`              | Tone for analysis (e.g., `formal`, `informal`, `academic`)                                            | No       | `formal`           |
-| `style-guide`       | Style guide for analysis (e.g., `ap`, `chicago`, `apa`)                                               | No       | `ap`               |
-| `add_commit_status` | Whether to add commit status updates                                                                  | No       | `true`             |
+| Input                    | Description                                                                                           | Required | Default            |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- | -------- | ------------------ |
+| `acrolinx_token`         | Acrolinx API token for style checking. Can also be provided via `ACROLINX_TOKEN` environment variable | Yes      | -                  |
+| `github_token`           | GitHub token for API access. Can also be provided via `GITHUB_TOKEN` environment variable             | Yes      | -                  |
+| `dialect`                | Language dialect for analysis (e.g., `american_english`, `british_english`)                           | No       | `american_english` |
+| `tone`                   | Tone for analysis (e.g., `formal`, `informal`, `academic`)                                            | No       | `formal`           |
+| `style-guide`            | Style guide for analysis (e.g., `ap`, `chicago`, `apa`)                                               | No       | `ap`               |
+| `add_commit_status`      | Whether to add commit status updates                                                                  | No       | `true`             |
+| `add_commit_suggestions` | Whether to create commit suggestions on pull requests (only for PR events)                            | No       | `true`             |
+| `suggestion_batch_size`  | Number of suggestions to create in each batch (GitHub API limit)                                      | No       | `10`               |
 
 ## Outputs
 
@@ -163,6 +165,40 @@ The action automatically adapts its behavior based on the GitHub event type:
 - **Scope**: Analyzes all supported files in repository
 - **Features**: Periodic quality monitoring
 - **Use Case**: Automated quality checks
+
+## Commit Suggestions
+
+For pull request events, the action can automatically create commit suggestions
+based on Acrolinx's rewritten content. These suggestions allow users to accept
+improvements with a single click.
+
+### How It Works
+
+1. **Analysis**: Acrolinx analyzes files and provides rewritten content
+2. **Diff Generation**: The action compares original content with rewritten
+   content
+3. **Suggestion Creation**: Converts diffs to GitHub suggestion format
+4. **User Experience**: Users see suggestions they can accept directly
+
+### Configuration
+
+```yaml
+- name: Run Acrolinx Analysis
+  uses: acrolinx/nextgen-analyzer@v0.0.5
+  with:
+    acrolinx_token: ${{ secrets.ACROLINX_TOKEN }}
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+    add_commit_suggestions: 'true' # Enable commit suggestions (default)
+    suggestion_batch_size: '10' # Suggestions per batch (default)
+```
+
+### Features
+
+- **Automatic Dismissal**: Existing pending reviews are automatically dismissed
+  before creating new ones
+- **Batch Processing**: Handles multiple suggestions efficiently
+- **Error Handling**: Graceful handling of API limits and permission issues
+- **Event-Specific**: Only creates suggestions for pull request events
 
 ## Examples
 
