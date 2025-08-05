@@ -194,8 +194,8 @@ improvements with a single click.
 
 ### Features
 
-- **Automatic Dismissal**: Existing pending reviews are automatically dismissed
-  before creating new ones
+- **Automatic Review Management**: Existing pending reviews are automatically
+  submitted to make room for new ones
 - **Batch Processing**: Handles multiple suggestions efficiently
 - **Error Handling**: Graceful handling of API limits and permission issues
 - **Event-Specific**: Only creates suggestions for pull request events
