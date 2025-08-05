@@ -34265,7 +34265,8 @@ async function createRewriteBranch(octokit, config, files, readFileContent) {
         const { owner, repo } = githubExports.context.repo;
         const prNumber = githubExports.context.issue.number;
         const commitSha = githubExports.context.sha;
-        const baseBranch = githubExports.context.payload.pull_request?.base.ref || 'main';
+        // Use the head branch (working branch) as the base for rewrite branch to avoid conflicts
+        const headBranch = githubExports.context.payload.pull_request?.head.ref || 'main';
         // Generate consistent branch name (without commit SHA to allow reuse)
         const branchName = `acrolinx-rewrite-${prNumber}`;
         coreExports.info(`🔄 Processing rewrite branch: ${branchName}`);
@@ -34294,12 +34295,12 @@ async function createRewriteBranch(octokit, config, files, readFileContent) {
             return null;
         }
         if (!branchExists) {
-            // Create new branch from base branch
-            await createBranchFromBase(octokit, owner, repo, branchName, baseBranch);
+            // Create new branch from head branch (working branch) to avoid conflicts
+            await createBranchFromBase(octokit, owner, repo, branchName, headBranch);
         }
         else {
-            // Update existing branch to latest base branch state
-            await updateBranchToLatest(octokit, owner, repo, branchName, baseBranch);
+            // Update existing branch to latest head branch state
+            await updateBranchToLatest(octokit, owner, repo, branchName, headBranch);
         }
         // Apply rewritten files to the branch
         await applyRewrittenFiles(octokit, owner, repo, branchName, rewrittenFiles);

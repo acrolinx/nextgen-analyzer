@@ -34,7 +34,8 @@ export async function createRewriteBranch(
     const { owner, repo } = github.context.repo
     const prNumber = github.context.issue.number
     const commitSha = github.context.sha
-    const baseBranch = github.context.payload.pull_request?.base.ref || 'main'
+    // Use the head branch (working branch) as the base for rewrite branch to avoid conflicts
+    const headBranch = github.context.payload.pull_request?.head.ref || 'main'
 
     // Generate consistent branch name (without commit SHA to allow reuse)
     const branchName = `acrolinx-rewrite-${prNumber}`
@@ -74,11 +75,11 @@ export async function createRewriteBranch(
     }
 
     if (!branchExists) {
-      // Create new branch from base branch
-      await createBranchFromBase(octokit, owner, repo, branchName, baseBranch)
+      // Create new branch from head branch (working branch) to avoid conflicts
+      await createBranchFromBase(octokit, owner, repo, branchName, headBranch)
     } else {
-      // Update existing branch to latest base branch state
-      await updateBranchToLatest(octokit, owner, repo, branchName, baseBranch)
+      // Update existing branch to latest head branch state
+      await updateBranchToLatest(octokit, owner, repo, branchName, headBranch)
     }
 
     // Apply rewritten files to the branch
