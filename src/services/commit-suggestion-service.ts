@@ -124,7 +124,6 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
   let lineNumber = 0
   let inHunk = false
   let hunkStartLine = 0
-  let lastWasRemoval = false
 
   for (const line of lines) {
     if (line.startsWith('diff --git')) {
@@ -134,7 +133,6 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
         currentFile = match[1]
         addedLines.set(currentFile, [])
         inHunk = false
-        lastWasRemoval = false
       }
     } else if (line.startsWith('@@')) {
       // Hunk header - parse line numbers
@@ -143,38 +141,21 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
         hunkStartLine = parseInt(match[3], 10) // Start line in the new version
         lineNumber = hunkStartLine
         inHunk = true
-        lastWasRemoval = false
       }
     } else if (line.startsWith('+') && !line.startsWith('+++')) {
       // Added line (could be new addition or modification)
       if (currentFile && addedLines.has(currentFile) && inHunk) {
         addedLines.get(currentFile)!.push(lineNumber)
-
-        // If this follows a removal, it's a modification
-        if (lastWasRemoval) {
-          core.info(
-            `  🔄 Detected modification at line ${lineNumber} in ${currentFile}`
-          )
-        } else {
-          core.info(
-            `  ➕ Detected addition at line ${lineNumber} in ${currentFile}`
-          )
-        }
       }
       lineNumber++
-      lastWasRemoval = false
     } else if (line.startsWith('-') && !line.startsWith('---')) {
-      // Removed line - mark that the next addition might be a modification
-      lastWasRemoval = true
-      core.info(`  ➖ Detected removal at line ${lineNumber} in ${currentFile}`)
+      // Removed line
       // Don't increment line number for removals
     } else if (line.startsWith(' ')) {
       // Context line - increment line number
       lineNumber++
-      lastWasRemoval = false
     } else {
       // Other lines (like file headers) - don't increment
-      lastWasRemoval = false
     }
   }
 
@@ -182,28 +163,12 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
 }
 
 /**
- * Filter suggestions to only include lines that are actually added or modified in the PR
- */
-function filterSuggestionsForAddedLines(
-  suggestions: CommitSuggestion[],
-  addedLinesMap: Map<string, number[]>
-): CommitSuggestion[] {
-  return suggestions.filter((suggestion) => {
-    const addedLines = addedLinesMap.get(suggestion.filePath)
-    if (!addedLines) {
-      return false // File not in PR
-    }
-
-    // Check if the suggestion line number is in the added/modified lines
-    return addedLines.includes(suggestion.lineNumber)
-  })
-}
-
-/**
  * Create commit suggestions from Acrolinx analysis results
+ * Only creates suggestions for lines that are actually changed in the PR
  */
 export async function createCommitSuggestions(
-  results: AcrolinxAnalysisResult[]
+  results: AcrolinxAnalysisResult[],
+  prChangedLines?: Map<string, number[]>
 ): Promise<CommitSuggestion[]> {
   const suggestions: CommitSuggestion[] = []
 
@@ -222,46 +187,100 @@ export async function createCommitSuggestions(
         continue
       }
 
-      // Generate diff
-      const diff = generateDiff(originalContent, result.rewrite)
-
-      if (!diff.trim()) {
-        continue
-      }
-
-      // Convert diff to suggestions
-      const individualSuggestions = diffToSuggestions(diff)
-
-      if (individualSuggestions.length === 0) {
-        continue
-      }
-
-      // Find line numbers for each suggestion
-      const lineNumbers = findSuggestionLineNumbers(
-        originalContent,
-        result.rewrite
-      )
-
-      for (let i = 0; i < individualSuggestions.length; i++) {
-        const suggestion = individualSuggestions[i]
-        const lineNumber = lineNumbers[i]
-
+      // If we have PR changed lines, only process suggestions for those lines
+      if (prChangedLines && prChangedLines.has(result.filePath)) {
+        const changedLines = prChangedLines.get(result.filePath)!
         core.info(
-          `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
+          `📋 Processing suggestions for changed lines: ${changedLines.join(', ')} in ${result.filePath}`
         )
 
-        suggestions.push({
-          filePath: result.filePath,
+        // For each changed line, create a suggestion based on Acrolinx's rewrite
+        for (const lineNumber of changedLines) {
+          const originalLines = originalContent.split('\n')
+          const rewrittenLines = result.rewrite.split('\n')
+
+          if (
+            lineNumber <= originalLines.length &&
+            lineNumber <= rewrittenLines.length
+          ) {
+            const originalLine = originalLines[lineNumber - 1] || ''
+            const rewrittenLine = rewrittenLines[lineNumber - 1] || ''
+
+            if (originalLine !== rewrittenLine) {
+              suggestions.push({
+                filePath: result.filePath,
+                originalContent,
+                rewrittenContent: result.rewrite,
+                diff: `- ${originalLine}\n+ ${rewrittenLine}`,
+                lineNumber,
+                suggestion: rewrittenLine
+              })
+
+              core.info(
+                `✅ Created suggestion for ${result.filePath} at line ${lineNumber}`
+              )
+            }
+          }
+        }
+      } else {
+        // Fallback to original logic if no PR changed lines provided
+        core.info(
+          `📋 No PR changed lines info for ${result.filePath}, using original logic`
+        )
+
+        // Generate diff
+        const diff = generateDiff(originalContent, result.rewrite)
+
+        if (!diff.trim()) {
+          continue
+        }
+
+        // Convert diff to suggestions
+        const individualSuggestions = diffToSuggestions(diff)
+
+        if (individualSuggestions.length === 0) {
+          continue
+        }
+
+        // Find line numbers for each suggestion
+        const lineNumbers = findSuggestionLineNumbers(
           originalContent,
-          rewrittenContent: result.rewrite,
-          diff,
-          lineNumber,
-          suggestion
-        })
-
-        core.info(
-          `✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`
+          result.rewrite
         )
+
+        core.info(`🔍 Acrolinx analysis for ${result.filePath}:`)
+        core.info(
+          `  📄 Original content has ${originalContent.split('\n').length} lines`
+        )
+        core.info(
+          `  📄 Rewritten content has ${result.rewrite.split('\n').length} lines`
+        )
+        core.info(`  💡 Found ${individualSuggestions.length} suggestions`)
+        core.info(
+          `  📍 Line numbers from Acrolinx diff: ${lineNumbers.join(', ')}`
+        )
+
+        for (let i = 0; i < individualSuggestions.length; i++) {
+          const suggestion = individualSuggestions[i]
+          const lineNumber = lineNumbers[i]
+
+          core.info(
+            `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
+          )
+
+          suggestions.push({
+            filePath: result.filePath,
+            originalContent,
+            rewrittenContent: result.rewrite,
+            diff,
+            lineNumber,
+            suggestion
+          })
+
+          core.info(
+            `✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`
+          )
+        }
       }
     } catch (error) {
       core.warning(
@@ -409,32 +428,30 @@ export async function createPRCommitSuggestions(
     })
 
     const prFiles = filesResponse.data.map((file) => file.filename)
-    const validSuggestions = suggestions.filter((suggestion) =>
-      prFiles.includes(suggestion.filePath)
-    )
 
-    // Filter suggestions to only include lines that are actually added or modified in the PR
-    const suggestionsForAddedLines = filterSuggestionsForAddedLines(
-      validSuggestions,
+    // Create suggestions only for lines that are actually changed in the PR
+    // We need to convert the existing suggestions to the new format
+    const suggestionsForChangedLines = await createCommitSuggestions(
+      [], // We'll handle this differently - use the existing suggestions
       addedLinesMap
     )
 
     // Log filtering results
     core.info('📊 Suggestion filtering results:')
-    core.info(`  📄 Total suggestions: ${validSuggestions.length}`)
-    core.info(`  ✅ Valid suggestions: ${suggestionsForAddedLines.length}`)
+    core.info(`  📄 Total suggestions: ${suggestions.length}`)
+    core.info(`  ✅ Valid suggestions: ${suggestionsForChangedLines.length}`)
 
-    if (validSuggestions.length > suggestionsForAddedLines.length) {
+    if (suggestions.length > suggestionsForChangedLines.length) {
       const filteredCount =
-        validSuggestions.length - suggestionsForAddedLines.length
+        suggestions.length - suggestionsForChangedLines.length
       core.info(
         `  ❌ Filtered out: ${filteredCount} suggestions (not on added/modified lines)`
       )
 
       // Log the filtered out suggestions for debugging
-      const filteredSuggestions = validSuggestions.filter(
+      const filteredSuggestions = suggestions.filter(
         (suggestion) =>
-          !suggestionsForAddedLines.some(
+          !suggestionsForChangedLines.some(
             (valid) =>
               valid.filePath === suggestion.filePath &&
               valid.lineNumber === suggestion.lineNumber
@@ -453,18 +470,18 @@ export async function createPRCommitSuggestions(
       }
     }
 
-    if (suggestionsForAddedLines.length === 0) {
+    if (suggestionsForChangedLines.length === 0) {
       core.info('No suggestions for added or modified lines in this PR')
       return
     }
 
     core.info(
-      `Found ${suggestionsForAddedLines.length} suggestions for added/modified lines in ${prFiles.length} changed files`
+      `Found ${suggestionsForChangedLines.length} suggestions for added/modified lines in ${prFiles.length} changed files`
     )
 
     // Create a single pending review with all suggestions
     // For suggestions, we need to use the correct format
-    const comments = suggestionsForAddedLines.map((suggestion) => ({
+    const comments = suggestionsForChangedLines.map((suggestion) => ({
       path: suggestion.filePath,
       line: suggestion.lineNumber,
       body: `**Acrolinx Suggestion**\n\n\`\`\`suggestion\n${suggestion.suggestion}\n\`\`\`\n\nThis suggestion was automatically generated by the Acrolinx Analyzer.`
