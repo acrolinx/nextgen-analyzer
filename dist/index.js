@@ -34299,17 +34299,8 @@ async function createRewriteBranch(octokit, config, files, readFileContent) {
             await createBranchFromBase(octokit, owner, repo, branchName, headBranch);
         }
         else {
-            // Try to update existing branch, but fall back to recreation if it fails
-            try {
-                await updateBranchToLatest(octokit, owner, repo, branchName, headBranch);
-            }
-            catch {
-                coreExports.warning(`Failed to update branch ${branchName}, recreating it`);
-                // Force delete the branch reference if it exists but is invalid
-                await forceDeleteBranch(octokit, owner, repo, branchName);
-                // Recreate the branch
-                await createBranchFromBase(octokit, owner, repo, branchName, headBranch);
-            }
+            // Branch exists, just apply the changes directly
+            coreExports.info(`Branch ${branchName} already exists, applying changes directly`);
         }
         // Apply rewritten files to the branch
         await applyRewrittenFiles(octokit, owner, repo, branchName, rewrittenFiles);
@@ -34352,31 +34343,6 @@ async function createBranchFromBase(octokit, owner, repo, branchName, baseBranch
     }
     catch (error) {
         logError(error, `Failed to create branch ${branchName}`);
-        throw error;
-    }
-}
-/**
- * Update an existing branch to the latest state of the base branch
- */
-async function updateBranchToLatest(octokit, owner, repo, branchName, baseBranch) {
-    try {
-        // Get the latest commit SHA from base branch
-        const baseRef = await octokit.rest.repos.getBranch({
-            owner,
-            repo,
-            branch: baseBranch
-        });
-        // Update the branch to point to the latest commit SHA
-        await octokit.rest.git.updateRef({
-            owner,
-            repo,
-            ref: `refs/heads/${branchName}`,
-            sha: baseRef.data.commit.sha
-        });
-        coreExports.info(`✅ Updated branch ${branchName} to latest state of ${baseBranch}`);
-    }
-    catch (error) {
-        logError(error, `Failed to update branch ${branchName}`);
         throw error;
     }
 }
