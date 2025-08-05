@@ -34305,17 +34305,8 @@ async function createRewriteBranch(octokit, config, files, readFileContent) {
             }
             catch {
                 coreExports.warning(`Failed to update branch ${branchName}, recreating it`);
-                // Delete the branch reference if it exists but is invalid
-                try {
-                    await octokit.rest.git.deleteRef({
-                        owner,
-                        repo,
-                        ref: `refs/heads/${branchName}`
-                    });
-                }
-                catch {
-                    // Branch doesn't exist, which is fine
-                }
+                // Force delete the branch reference if it exists but is invalid
+                await forceDeleteBranch(octokit, owner, repo, branchName);
                 // Recreate the branch
                 await createBranchFromBase(octokit, owner, repo, branchName, headBranch);
             }
@@ -34342,6 +34333,8 @@ async function createRewriteBranch(octokit, config, files, readFileContent) {
  */
 async function createBranchFromBase(octokit, owner, repo, branchName, baseBranch) {
     try {
+        // First, try to delete the branch if it exists to avoid conflicts
+        await forceDeleteBranch(octokit, owner, repo, branchName);
         // Get the latest commit SHA from base branch
         const baseRef = await octokit.rest.repos.getBranch({
             owner,
@@ -34385,6 +34378,22 @@ async function updateBranchToLatest(octokit, owner, repo, branchName, baseBranch
     catch (error) {
         logError(error, `Failed to update branch ${branchName}`);
         throw error;
+    }
+}
+/**
+ * Force delete a branch reference if it exists
+ */
+async function forceDeleteBranch(octokit, owner, repo, branchName) {
+    try {
+        await octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branchName}`
+        });
+        coreExports.info(`✅ Forced deleted branch reference for ${branchName}`);
+    }
+    catch (error) {
+        coreExports.warning(`Failed to force delete branch reference for ${branchName}: ${error}`);
     }
 }
 /**

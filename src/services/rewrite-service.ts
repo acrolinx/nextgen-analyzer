@@ -83,16 +83,8 @@ export async function createRewriteBranch(
         await updateBranchToLatest(octokit, owner, repo, branchName, headBranch)
       } catch {
         core.warning(`Failed to update branch ${branchName}, recreating it`)
-        // Delete the branch reference if it exists but is invalid
-        try {
-          await octokit.rest.git.deleteRef({
-            owner,
-            repo,
-            ref: `refs/heads/${branchName}`
-          })
-        } catch {
-          // Branch doesn't exist, which is fine
-        }
+        // Force delete the branch reference if it exists but is invalid
+        await forceDeleteBranch(octokit, owner, repo, branchName)
         // Recreate the branch
         await createBranchFromBase(octokit, owner, repo, branchName, headBranch)
       }
@@ -131,6 +123,9 @@ async function createBranchFromBase(
   baseBranch: string
 ): Promise<void> {
   try {
+    // First, try to delete the branch if it exists to avoid conflicts
+    await forceDeleteBranch(octokit, owner, repo, branchName)
+
     // Get the latest commit SHA from base branch
     const baseRef = await octokit.rest.repos.getBranch({
       owner,
@@ -185,6 +180,29 @@ async function updateBranchToLatest(
   } catch (error) {
     logError(error, `Failed to update branch ${branchName}`)
     throw error
+  }
+}
+
+/**
+ * Force delete a branch reference if it exists
+ */
+async function forceDeleteBranch(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  branchName: string
+): Promise<void> {
+  try {
+    await octokit.rest.git.deleteRef({
+      owner,
+      repo,
+      ref: `refs/heads/${branchName}`
+    })
+    core.info(`✅ Forced deleted branch reference for ${branchName}`)
+  } catch (error) {
+    core.warning(
+      `Failed to force delete branch reference for ${branchName}: ${error}`
+    )
   }
 }
 
