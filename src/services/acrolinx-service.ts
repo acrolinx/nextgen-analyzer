@@ -4,11 +4,11 @@
 
 import * as core from '@actions/core'
 import {
-  styleCheck,
-  styleBatchCheckRequests,
   Config,
   StyleAnalysisReq,
-  StyleScores
+  StyleScores,
+  styleRewrite,
+  styleBatchRewrites
 } from '@acrolinx/typescript-sdk'
 import { AcrolinxAnalysisResult, AnalysisOptions } from '../types/index.js'
 import { getFileBasename } from '../utils/file-utils.js'
@@ -42,12 +42,13 @@ export async function analyzeFile(
       documentName: getFileBasename(filePath)
     }
 
-    const result = await styleCheck(request, config)
+    const result = await styleRewrite(request, config)
 
     return {
       filePath,
       result: result.scores,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      rewrite: result.rewrite
     }
   } catch (error) {
     core.error(`Failed to run Acrolinx check on ${filePath}: ${error}`)
@@ -99,11 +100,7 @@ export async function analyzeFilesBatch(
 
   try {
     // Start batch processing
-    const batchResponse = styleBatchCheckRequests(
-      requests,
-      config,
-      batchOptions
-    )
+    const batchResponse = styleBatchRewrites(requests, config, batchOptions)
 
     // Monitor progress
     const progressInterval = setInterval(() => {
@@ -131,7 +128,7 @@ export async function analyzeFilesBatch(
       (
         batchResult: {
           status: string
-          result?: { scores: StyleScores }
+          result?: { scores: StyleScores; rewrite: string }
           error?: { message: string }
         },
         index: number
@@ -140,7 +137,8 @@ export async function analyzeFilesBatch(
           results.push({
             filePath: fileContents[index].filePath,
             result: batchResult.result.scores,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            rewrite: batchResult.result.rewrite
           })
         } else if (batchResult.status === 'failed') {
           core.error(

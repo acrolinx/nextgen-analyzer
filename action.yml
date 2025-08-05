@@ -37,6 +37,14 @@ inputs:
     description: Add commit status updates (default is true)
     required: false
     default: 'true'
+  add_commit_suggestions:
+    description: Add commit suggestions to pull requests (default is true)
+    required: false
+    default: 'true'
+  suggestion_batch_size:
+    description: Number of suggestions to create in each batch (default is 10)
+    required: false
+    default: '10'
 
 # Define your outputs here.
 outputs:

@@ -14,6 +14,10 @@ import {
 } from './pr-comment-service.js'
 import { createGitHubClient, updateCommitStatus } from './github-service.js'
 import { createJobSummary } from './job-summary-service.js'
+import {
+  createCommitSuggestions,
+  createPRCommitSuggestions
+} from './commit-suggestion-service.js'
 import { getAnalysisOptions } from '../config/action-config.js'
 import { displaySectionHeader } from '../utils/display-utils.js'
 
@@ -23,7 +27,12 @@ import { displaySectionHeader } from '../utils/display-utils.js'
 export async function handlePostAnalysisActions(
   eventInfo: EventInfo,
   results: AcrolinxAnalysisResult[],
-  config: { githubToken: string; addCommitStatus: boolean },
+  config: {
+    githubToken: string
+    addCommitStatus: boolean
+    addCommitSuggestions: boolean
+    suggestionBatchSize: number
+  },
   analysisOptions: ReturnType<typeof getAnalysisOptions>
 ): Promise<void> {
   if (results.length === 0) {
@@ -70,10 +79,11 @@ export async function handlePostAnalysisActions(
       break
 
     case EVENT_TYPES.PULL_REQUEST:
-      // Handle PR comments for pull request events
+      // Handle PR comments and suggestions for pull request events
       if (isPullRequestEvent()) {
         const prNumber = getPRNumber()
         if (prNumber) {
+          // Create PR comment
           displaySectionHeader('💬 Creating PR Comment')
           try {
             await createOrUpdatePRComment(octokit, {
@@ -86,6 +96,30 @@ export async function handlePostAnalysisActions(
             })
           } catch (error) {
             core.error(`Failed to create PR comment: ${error}`)
+          }
+
+          // Create commit suggestions (if enabled)
+          if (config.addCommitSuggestions) {
+            displaySectionHeader('💡 Creating Commit Suggestions')
+            try {
+              const suggestions = await createCommitSuggestions(results)
+
+              if (suggestions.length > 0) {
+                await createPRCommitSuggestions(octokit, {
+                  owner,
+                  repo,
+                  prNumber,
+                  suggestions,
+                  eventType: eventInfo.eventType
+                })
+              } else {
+                core.info('No suggestions to create from Acrolinx results')
+              }
+            } catch (error) {
+              core.error(`Failed to create commit suggestions: ${error}`)
+            }
+          } else {
+            core.info('💡 Commit suggestions disabled by configuration')
           }
         }
       }

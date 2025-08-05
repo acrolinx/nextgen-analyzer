@@ -68,7 +68,7 @@ jest.unstable_mockModule('@actions/github', () => ({
 
 // Mock the Acrolinx SDK
 jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
-  styleCheck: jest.fn(() =>
+  styleRewrite: jest.fn(() =>
     Promise.resolve({
       workflow_id: 'test-workflow-123',
       status: 'completed',
@@ -90,7 +90,7 @@ jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
       ]
     })
   ),
-  styleBatchCheckRequests: jest.fn(() => ({
+  styleBatchRewrites: jest.fn(() => ({
     progress: {
       total: 1,
       completed: 1,

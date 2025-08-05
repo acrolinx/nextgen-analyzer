@@ -58,7 +58,7 @@ jest.unstable_mockModule('@actions/github', () => ({
 
 // Mock the Acrolinx SDK
 jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
-  styleCheck: jest.fn(() =>
+  styleRewrite: jest.fn(() =>
     Promise.resolve({
       workflow_id: 'test-workflow-123',
       status: 'completed',
@@ -77,10 +77,11 @@ jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
           subcategory: 'passive_voice',
           category: 'style_guide'
         }
-      ]
+      ],
+      rewrite: 'test rewrite'
     })
   ),
-  styleBatchCheckRequests: jest.fn(() => ({
+  styleBatchRewrites: jest.fn(() => ({
     progress: {
       total: 1,
       completed: 1,
@@ -99,7 +100,8 @@ jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
               style_guide: { score: 88.3, issues: 1 },
               tone: { score: 82.3 },
               terminology: { score: 95.0, issues: 0 }
-            }
+            },
+            rewrite: 'test rewrite'
           }
         }
       ],
@@ -123,7 +125,8 @@ jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
               style_guide: { score: 88.3, issues: 1 },
               tone: { score: 82.3 },
               terminology: { score: 95.0, issues: 0 }
-            }
+            },
+            rewrite: 'test rewrite'
           }
         }
       ],

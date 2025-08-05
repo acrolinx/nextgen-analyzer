@@ -10,9 +10,9 @@ jest.unstable_mockModule('@actions/core', () => core)
 
 // Mock the Acrolinx SDK
 jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
-  styleCheck: jest.fn(),
-  styleBatchCheckRequests: jest.fn(),
-  Config: jest.fn()
+  styleBatchRewrites: jest.fn(),
+  Config: jest.fn(),
+  styleRewrite: jest.fn()
 }))
 
 // Import the module after mocking
@@ -71,9 +71,7 @@ describe('Acrolinx Service Batch Functionality', () => {
     })
 
     it('should process multiple files using batch API', async () => {
-      const { styleBatchCheckRequests } = await import(
-        '@acrolinx/typescript-sdk'
-      )
+      const { styleBatchRewrites } = await import('@acrolinx/typescript-sdk')
       const mockBatchResponse = {
         progress: {
           total: 2,
@@ -142,7 +140,7 @@ describe('Acrolinx Service Batch Functionality', () => {
         cancel: jest.fn()
       }
 
-      jest.mocked(styleBatchCheckRequests).mockReturnValue(mockBatchResponse)
+      jest.mocked(styleBatchRewrites).mockReturnValue(mockBatchResponse)
 
       const result = await analyzeFilesBatch(
         ['file1.txt', 'file2.txt'],
@@ -151,7 +149,7 @@ describe('Acrolinx Service Batch Functionality', () => {
         mockReadFileContent
       )
 
-      expect(styleBatchCheckRequests).toHaveBeenCalledWith(
+      expect(styleBatchRewrites).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
             content: 'Test content for file1.txt',
@@ -199,9 +197,7 @@ describe('Acrolinx Service Batch Functionality', () => {
     })
 
     it('should handle failed batch requests', async () => {
-      const { styleBatchCheckRequests } = await import(
-        '@acrolinx/typescript-sdk'
-      )
+      const { styleBatchRewrites } = await import('@acrolinx/typescript-sdk')
       const mockBatchResponse = {
         progress: {
           total: 2,
@@ -258,7 +254,7 @@ describe('Acrolinx Service Batch Functionality', () => {
         cancel: jest.fn()
       }
 
-      jest.mocked(styleBatchCheckRequests).mockReturnValue(mockBatchResponse)
+      jest.mocked(styleBatchRewrites).mockReturnValue(mockBatchResponse)
 
       const result = await analyzeFilesBatch(
         ['file1.txt', 'file2.txt'],
@@ -272,10 +268,8 @@ describe('Acrolinx Service Batch Functionality', () => {
     })
 
     it('should handle batch processing errors', async () => {
-      const { styleBatchCheckRequests } = await import(
-        '@acrolinx/typescript-sdk'
-      )
-      jest.mocked(styleBatchCheckRequests).mockImplementation(() => {
+      const { styleBatchRewrites } = await import('@acrolinx/typescript-sdk')
+      jest.mocked(styleBatchRewrites).mockImplementation(() => {
         throw new Error('Batch processing failed')
       })
 
@@ -292,8 +286,8 @@ describe('Acrolinx Service Batch Functionality', () => {
 
   describe('analyzeFiles with batch processing', () => {
     it('should use sequential processing for small batches (≤3 files)', async () => {
-      const { styleCheck } = await import('@acrolinx/typescript-sdk')
-      jest.mocked(styleCheck).mockResolvedValue({
+      const { styleRewrite } = await import('@acrolinx/typescript-sdk')
+      jest.mocked(styleRewrite).mockResolvedValue({
         scores: {
           quality: { score: 85 },
           clarity: { score: 90 },
@@ -308,14 +302,12 @@ describe('Acrolinx Service Batch Functionality', () => {
         mockReadFileContent
       )
 
-      expect(styleCheck).toHaveBeenCalledTimes(2)
+      expect(styleRewrite).toHaveBeenCalledTimes(2)
       expect(result).toHaveLength(2)
     })
 
     it('should use batch processing for larger batches (>3 files)', async () => {
-      const { styleBatchCheckRequests } = await import(
-        '@acrolinx/typescript-sdk'
-      )
+      const { styleBatchRewrites } = await import('@acrolinx/typescript-sdk')
       const mockBatchResponse = {
         progress: {
           total: 4,
@@ -428,7 +420,7 @@ describe('Acrolinx Service Batch Functionality', () => {
         cancel: jest.fn()
       }
 
-      jest.mocked(styleBatchCheckRequests).mockReturnValue(mockBatchResponse)
+      jest.mocked(styleBatchRewrites).mockReturnValue(mockBatchResponse)
 
       const result = await analyzeFiles(
         ['file1.txt', 'file2.txt', 'file3.txt', 'file4.txt'],
@@ -437,7 +429,7 @@ describe('Acrolinx Service Batch Functionality', () => {
         mockReadFileContent
       )
 
-      expect(styleBatchCheckRequests).toHaveBeenCalledTimes(1)
+      expect(styleBatchRewrites).toHaveBeenCalledTimes(1)
       expect(result).toHaveLength(4)
     })
   })

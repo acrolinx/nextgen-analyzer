@@ -35,6 +35,30 @@ export interface AcrolinxAnalysisResult {
   filePath: string
   result: StyleScores
   timestamp: string
+  rewrite: string
+}
+
+/**
+ * Interface for commit suggestion data
+ */
+export interface CommitSuggestion {
+  filePath: string
+  originalContent: string
+  rewrittenContent: string
+  diff: string
+  lineNumber: number
+  suggestion: string
+}
+
+/**
+ * Interface for PR suggestion data
+ */
+export interface PRSuggestionData {
+  owner: string
+  repo: string
+  prNumber: number
+  suggestions: CommitSuggestion[]
+  eventType: string
 }
 
 /**
@@ -65,6 +89,8 @@ export interface ActionConfig {
   styleGuide: string
   githubToken: string
   addCommitStatus: boolean
+  addCommitSuggestions: boolean
+  suggestionBatchSize: number
 }
 
 /**

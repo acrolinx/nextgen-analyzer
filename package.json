@@ -40,6 +40,7 @@
     "@acrolinx/typescript-sdk": "^0.0.64",
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
+    "diff": "^8.0.2",
     "octokit": "^5.0.3"
   },
   "devDependencies": {

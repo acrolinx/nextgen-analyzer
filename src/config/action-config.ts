@@ -35,6 +35,14 @@ export function getActionConfig(): ActionConfig {
   )
 
   const addCommitStatus = getBooleanInput(INPUT_NAMES.ADD_COMMIT_STATUS, true)
+  const addCommitSuggestions = getBooleanInput(
+    INPUT_NAMES.ADD_COMMIT_SUGGESTIONS,
+    true
+  )
+  const suggestionBatchSize = getNumberInput(
+    INPUT_NAMES.SUGGESTION_BATCH_SIZE,
+    10
+  )
 
   return {
     acrolinxApiToken,
@@ -42,7 +50,9 @@ export function getActionConfig(): ActionConfig {
     dialect,
     tone,
     styleGuide,
-    addCommitStatus
+    addCommitStatus,
+    addCommitSuggestions,
+    suggestionBatchSize
   }
 }
 
@@ -97,6 +107,19 @@ function getBooleanInput(inputName: string, defaultValue: boolean): boolean {
 }
 
 /**
+ * Get a number input value with fallback to environment variable and default
+ */
+function getNumberInput(inputName: string, defaultValue: number): number {
+  const value = core.getInput(inputName) || process.env[inputName.toUpperCase()]
+
+  if (value === undefined || value === '') {
+    return defaultValue
+  }
+
+  return parseInt(value, 10)
+}
+
+/**
  * Validate configuration
  */
 export function validateConfig(config: ActionConfig): void {
@@ -137,4 +160,7 @@ export function logConfiguration(config: ActionConfig): void {
   core.info(
     `  GitHub Token: ${config.githubToken ? '[PROVIDED]' : '[MISSING]'}`
   )
+  core.info(`  Add Commit Status: ${config.addCommitStatus}`)
+  core.info(`  Add Commit Suggestions: ${config.addCommitSuggestions}`)
+  core.info(`  Suggestion Batch Size: ${config.suggestionBatchSize}`)
 }
