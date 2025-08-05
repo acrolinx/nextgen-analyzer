@@ -71,7 +71,7 @@ describe('Rewrite Service', () => {
   describe('createRewritePullRequest', () => {
     it('should create pull request successfully', async () => {
       const rewriteData = {
-        branchName: 'acrolinx-rewrite-123-abc12345',
+        branchName: 'acrolinx-rewrite-123',
         prNumber: 123,
         commitSha: 'abc123456789',
         rewrittenFiles: [
@@ -107,7 +107,7 @@ describe('Rewrite Service', () => {
         repo: 'test-repo',
         title: '🤖 Acrolinx Suggestions - PR #123',
         body: expect.stringContaining('Acrolinx Suggestions'),
-        head: 'acrolinx-rewrite-123-abc12345',
+        head: 'acrolinx-rewrite-123',
         base: 'feature-branch'
       })
     })

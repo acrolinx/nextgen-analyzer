@@ -36,22 +36,24 @@ export async function createRewriteBranch(
     const commitSha = github.context.sha
     const baseBranch = github.context.payload.pull_request?.base.ref || 'main'
 
-    // Generate unique branch name
-    const branchName = `acrolinx-rewrite-${prNumber}-${commitSha.slice(0, 8)}`
+    // Generate consistent branch name (without commit SHA to allow reuse)
+    const branchName = `acrolinx-rewrite-${prNumber}`
 
-    core.info(`🔄 Creating rewrite branch: ${branchName}`)
+    core.info(`🔄 Processing rewrite branch: ${branchName}`)
 
-    // Check if branch already exists to prevent infinite loops
+    // Check if branch already exists
+    let branchExists = false
     try {
       await octokit.rest.repos.getBranch({
         owner,
         repo,
         branch: branchName
       })
-      core.info(`Branch ${branchName} already exists, skipping rewrite`)
-      return null
+      branchExists = true
+      core.info(`Branch ${branchName} already exists, will update it`)
     } catch {
-      // Branch doesn't exist, continue
+      // Branch doesn't exist, will create it
+      core.info(`Branch ${branchName} doesn't exist, will create it`)
     }
 
     // Run Acrolinx rewrites
@@ -71,8 +73,13 @@ export async function createRewriteBranch(
       return null
     }
 
-    // Create new branch from base branch
-    await createBranchFromBase(octokit, owner, repo, branchName, baseBranch)
+    if (!branchExists) {
+      // Create new branch from base branch
+      await createBranchFromBase(octokit, owner, repo, branchName, baseBranch)
+    } else {
+      // Update existing branch to latest base branch state
+      await updateBranchToLatest(octokit, owner, repo, branchName, baseBranch)
+    }
 
     // Apply rewritten files to the branch
     await applyRewrittenFiles(octokit, owner, repo, branchName, rewrittenFiles)
@@ -80,7 +87,9 @@ export async function createRewriteBranch(
     // Commit the changes
     await commitRewrittenFiles(octokit, owner, repo, branchName, rewrittenFiles)
 
-    core.info(`✅ Rewrite branch created successfully: ${branchName}`)
+    core.info(
+      `✅ Rewrite branch ${branchExists ? 'updated' : 'created'} successfully: ${branchName}`
+    )
 
     return {
       branchName,
@@ -123,6 +132,41 @@ async function createBranchFromBase(
     core.info(`✅ Created branch ${branchName} from ${baseBranch}`)
   } catch (error) {
     logError(error, `Failed to create branch ${branchName}`)
+    throw error
+  }
+}
+
+/**
+ * Update an existing branch to the latest state of the base branch
+ */
+async function updateBranchToLatest(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  branchName: string,
+  baseBranch: string
+): Promise<void> {
+  try {
+    // Get the latest commit SHA from base branch
+    const baseRef = await octokit.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: baseBranch
+    })
+
+    // Update the branch to point to the latest commit SHA
+    await octokit.rest.git.updateRef({
+      owner,
+      repo,
+      ref: `refs/heads/${branchName}`,
+      sha: baseRef.data.commit.sha
+    })
+
+    core.info(
+      `✅ Updated branch ${branchName} to latest state of ${baseBranch}`
+    )
+  } catch (error) {
+    logError(error, `Failed to update branch ${branchName}`)
     throw error
   }
 }
