@@ -78,8 +78,24 @@ export async function createRewriteBranch(
       // Create new branch from head branch (working branch) to avoid conflicts
       await createBranchFromBase(octokit, owner, repo, branchName, headBranch)
     } else {
-      // Update existing branch to latest head branch state
-      await updateBranchToLatest(octokit, owner, repo, branchName, headBranch)
+      // Try to update existing branch, but fall back to recreation if it fails
+      try {
+        await updateBranchToLatest(octokit, owner, repo, branchName, headBranch)
+      } catch {
+        core.warning(`Failed to update branch ${branchName}, recreating it`)
+        // Delete the branch reference if it exists but is invalid
+        try {
+          await octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branchName}`
+          })
+        } catch {
+          // Branch doesn't exist, which is fine
+        }
+        // Recreate the branch
+        await createBranchFromBase(octokit, owner, repo, branchName, headBranch)
+      }
     }
 
     // Apply rewritten files to the branch
