@@ -18,7 +18,8 @@ jest.unstable_mockModule('@actions/github', () => ({
     sha: 'abc123456789',
     payload: {
       pull_request: {
-        base: { ref: 'main' }
+        base: { ref: 'main' },
+        head: { ref: 'feature-branch' }
       }
     }
   }
@@ -107,7 +108,7 @@ describe('Rewrite Service', () => {
         title: '🤖 Acrolinx Suggestions - PR #123',
         body: expect.stringContaining('Acrolinx Suggestions'),
         head: 'acrolinx-rewrite-123-abc12345',
-        base: 'main'
+        base: 'feature-branch'
       })
     })
 

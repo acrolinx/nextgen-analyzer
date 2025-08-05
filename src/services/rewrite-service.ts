@@ -213,7 +213,8 @@ export async function createRewritePullRequest(
 ): Promise<string | null> {
   try {
     const { owner, repo } = github.context.repo
-    const baseBranch = github.context.payload.pull_request?.base.ref || 'main'
+    // Target the head branch of the current PR (the working branch), not the base branch
+    const targetBranch = github.context.payload.pull_request?.head.ref || 'main'
 
     // Check if PR already exists
     const existingPRs = await octokit.rest.pulls.list({
@@ -235,7 +236,7 @@ export async function createRewritePullRequest(
       title: `🤖 Acrolinx Suggestions - PR #${rewriteData.prNumber}`,
       body: generateRewritePRBody(rewriteData),
       head: rewriteData.branchName,
-      base: baseBranch
+      base: targetBranch
     })
 
     core.info(`✅ Created rewrite PR: ${pr.data.html_url}`)

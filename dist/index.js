@@ -34399,7 +34399,8 @@ async function commitRewrittenFiles(octokit, owner, repo, branchName, rewrittenF
 async function createRewritePullRequest(octokit, rewriteData) {
     try {
         const { owner, repo } = githubExports.context.repo;
-        const baseBranch = githubExports.context.payload.pull_request?.base.ref || 'main';
+        // Target the head branch of the current PR (the working branch), not the base branch
+        const targetBranch = githubExports.context.payload.pull_request?.head.ref || 'main';
         // Check if PR already exists
         const existingPRs = await octokit.rest.pulls.list({
             owner,
@@ -34418,7 +34419,7 @@ async function createRewritePullRequest(octokit, rewriteData) {
             title: `🤖 Acrolinx Suggestions - PR #${rewriteData.prNumber}`,
             body: generateRewritePRBody(rewriteData),
             head: rewriteData.branchName,
-            base: baseBranch
+            base: targetBranch
         });
         coreExports.info(`✅ Created rewrite PR: ${pr.data.html_url}`);
         return pr.data.html_url;
