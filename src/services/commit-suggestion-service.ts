@@ -52,25 +52,8 @@ function createFileSuggestion(
 /**
  * Find the line number where the suggestion should be applied
  */
-function findSuggestionLineNumber(
-  originalContent: string,
-  rewrittenContent: string
-): number {
-  const originalLines = originalContent.split('\n')
-  const rewrittenLines = rewrittenContent.split('\n')
-
-  // Find the first line that differs
-  for (
-    let i = 0;
-    i < Math.min(originalLines.length, rewrittenLines.length);
-    i++
-  ) {
-    if (originalLines[i] !== rewrittenLines[i]) {
-      return i + 1 // GitHub uses 1-based line numbers
-    }
-  }
-
-  // If no difference found in existing lines, return the first line
+function findSuggestionLineNumber(): number {
+  // Since we're suggesting the entire file content, always start from line 1
   return 1
 }
 
@@ -112,10 +95,7 @@ export async function createCommitSuggestions(
       }
 
       // Find line number for suggestion
-      const lineNumber = findSuggestionLineNumber(
-        originalContent,
-        result.rewrite
-      )
+      const lineNumber = findSuggestionLineNumber()
 
       core.info(
         `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
