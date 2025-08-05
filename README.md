@@ -200,6 +200,8 @@ improvements with a single click.
   for better user experience
 - **Chunked Line Suggestions**: Continuous modified lines are grouped into
   single suggestions for better readability
+- **Smart File Filtering**: Only creates suggestions for files actually changed
+  in the pull request
 - **Error Handling**: Graceful handling of API limits and permission issues
 - **Event-Specific**: Only creates suggestions for pull request events
 
