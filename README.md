@@ -202,8 +202,8 @@ improvements with a single click.
   single suggestions for better readability
 - **Smart File Filtering**: Only creates suggestions for files actually changed
   in the pull request
-- **Diff-Based Filtering**: Only suggests on lines that are actually added in
-  the PR diff (GitHub requirement)
+- **Diff-Based Filtering**: Only suggests on lines that are actually added or
+  modified in the PR diff (GitHub requirement)
 - **Error Handling**: Graceful handling of API limits and permission issues
 - **Event-Specific**: Only creates suggestions for pull request events
 

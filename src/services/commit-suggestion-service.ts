@@ -115,13 +115,15 @@ function findSuggestionLineNumbers(
 }
 
 /**
- * Parse GitHub diff to find added lines
+ * Parse GitHub diff to find added and modified lines
  */
 function parseGitHubDiff(diffContent: string): Map<string, number[]> {
   const addedLines = new Map<string, number[]>()
   const lines = diffContent.split('\n')
   let currentFile = ''
   let lineNumber = 0
+  let inHunk = false
+  let hunkStartLine = 0
 
   for (const line of lines) {
     if (line.startsWith('diff --git')) {
@@ -130,24 +132,34 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
       if (match) {
         currentFile = match[1]
         addedLines.set(currentFile, [])
+        inHunk = false
       }
     } else if (line.startsWith('@@')) {
       // Hunk header - parse line numbers
       const match = line.match(/@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@/)
       if (match) {
-        lineNumber = parseInt(match[3], 10) // Start line in the new version
+        hunkStartLine = parseInt(match[3], 10) // Start line in the new version
+        lineNumber = hunkStartLine
+        inHunk = true
       }
     } else if (line.startsWith('+') && !line.startsWith('+++')) {
       // Added line
-      if (currentFile && addedLines.has(currentFile)) {
+      if (currentFile && addedLines.has(currentFile) && inHunk) {
         addedLines.get(currentFile)!.push(lineNumber)
       }
       lineNumber++
     } else if (line.startsWith('-') && !line.startsWith('---')) {
       // Removed line - don't increment line number
-    } else {
+      // But we'll treat the next addition as a modification
+    } else if (line.startsWith(' ')) {
       // Context line - increment line number
       lineNumber++
+    } else {
+      // Other lines (like file headers) - don't increment
+      if (inHunk) {
+        // If we're in a hunk, this might be a modification
+        // The next addition will be treated as a modification
+      }
     }
   }
 
@@ -155,7 +167,7 @@ function parseGitHubDiff(diffContent: string): Map<string, number[]> {
 }
 
 /**
- * Filter suggestions to only include lines that are actually added in the PR
+ * Filter suggestions to only include lines that are actually added or modified in the PR
  */
 function filterSuggestionsForAddedLines(
   suggestions: CommitSuggestion[],
@@ -167,7 +179,7 @@ function filterSuggestionsForAddedLines(
       return false // File not in PR
     }
 
-    // Check if the suggestion line number is in the added lines
+    // Check if the suggestion line number is in the added/modified lines
     return addedLines.includes(suggestion.lineNumber)
   })
 }
@@ -386,19 +398,19 @@ export async function createPRCommitSuggestions(
       prFiles.includes(suggestion.filePath)
     )
 
-    // Filter suggestions to only include lines that are actually added in the PR
+    // Filter suggestions to only include lines that are actually added or modified in the PR
     const suggestionsForAddedLines = filterSuggestionsForAddedLines(
       validSuggestions,
       addedLinesMap
     )
 
     if (suggestionsForAddedLines.length === 0) {
-      core.info('No suggestions for added lines in this PR')
+      core.info('No suggestions for added or modified lines in this PR')
       return
     }
 
     core.info(
-      `Found ${suggestionsForAddedLines.length} suggestions for added lines in ${prFiles.length} changed files`
+      `Found ${suggestionsForAddedLines.length} suggestions for added/modified lines in ${prFiles.length} changed files`
     )
 
     // Create a single pending review with all suggestions

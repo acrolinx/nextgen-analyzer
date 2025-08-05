@@ -34500,13 +34500,15 @@ function findSuggestionLineNumbers(originalContent, rewrittenContent) {
     return lineNumbers;
 }
 /**
- * Parse GitHub diff to find added lines
+ * Parse GitHub diff to find added and modified lines
  */
 function parseGitHubDiff(diffContent) {
     const addedLines = new Map();
     const lines = diffContent.split('\n');
     let currentFile = '';
     let lineNumber = 0;
+    let inHunk = false;
+    let hunkStartLine = 0;
     for (const line of lines) {
         if (line.startsWith('diff --git')) {
             // New file section
@@ -34514,32 +34516,36 @@ function parseGitHubDiff(diffContent) {
             if (match) {
                 currentFile = match[1];
                 addedLines.set(currentFile, []);
+                inHunk = false;
             }
         }
         else if (line.startsWith('@@')) {
             // Hunk header - parse line numbers
             const match = line.match(/@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@/);
             if (match) {
-                lineNumber = parseInt(match[3], 10); // Start line in the new version
+                hunkStartLine = parseInt(match[3], 10); // Start line in the new version
+                lineNumber = hunkStartLine;
+                inHunk = true;
             }
         }
         else if (line.startsWith('+') && !line.startsWith('+++')) {
             // Added line
-            if (currentFile && addedLines.has(currentFile)) {
+            if (currentFile && addedLines.has(currentFile) && inHunk) {
                 addedLines.get(currentFile).push(lineNumber);
             }
             lineNumber++;
         }
         else if (line.startsWith('-') && !line.startsWith('---')) ;
-        else {
+        else if (line.startsWith(' ')) {
             // Context line - increment line number
             lineNumber++;
         }
+        else ;
     }
     return addedLines;
 }
 /**
- * Filter suggestions to only include lines that are actually added in the PR
+ * Filter suggestions to only include lines that are actually added or modified in the PR
  */
 function filterSuggestionsForAddedLines(suggestions, addedLinesMap) {
     return suggestions.filter((suggestion) => {
@@ -34547,7 +34553,7 @@ function filterSuggestionsForAddedLines(suggestions, addedLinesMap) {
         if (!addedLines) {
             return false; // File not in PR
         }
-        // Check if the suggestion line number is in the added lines
+        // Check if the suggestion line number is in the added/modified lines
         return addedLines.includes(suggestion.lineNumber);
     });
 }
@@ -34698,13 +34704,13 @@ async function createPRCommitSuggestions(octokit, suggestionData) {
         });
         const prFiles = filesResponse.data.map((file) => file.filename);
         const validSuggestions = suggestions.filter((suggestion) => prFiles.includes(suggestion.filePath));
-        // Filter suggestions to only include lines that are actually added in the PR
+        // Filter suggestions to only include lines that are actually added or modified in the PR
         const suggestionsForAddedLines = filterSuggestionsForAddedLines(validSuggestions, addedLinesMap);
         if (suggestionsForAddedLines.length === 0) {
-            coreExports.info('No suggestions for added lines in this PR');
+            coreExports.info('No suggestions for added or modified lines in this PR');
             return;
         }
-        coreExports.info(`Found ${suggestionsForAddedLines.length} suggestions for added lines in ${prFiles.length} changed files`);
+        coreExports.info(`Found ${suggestionsForAddedLines.length} suggestions for added/modified lines in ${prFiles.length} changed files`);
         // Create a single pending review with all suggestions
         // For suggestions, we need to use the correct format
         const comments = suggestionsForAddedLines.map((suggestion) => ({
