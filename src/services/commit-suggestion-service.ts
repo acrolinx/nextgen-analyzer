@@ -39,31 +39,32 @@ function generateDiff(
 }
 
 /**
- * Convert diff to GitHub suggestion format
+ * Convert diff to individual line suggestions
  */
-function diffToSuggestion(diff: string): string {
+function diffToSuggestions(diff: string): string[] {
   const lines = diff.split('\n')
   const suggestions: string[] = []
 
   for (const line of lines) {
     if (line.startsWith('+') && !line.startsWith('++')) {
-      // This is an addition, suggest it
+      // This is an addition, create a separate suggestion for it
       suggestions.push(line.substring(1))
     }
   }
 
-  return suggestions.join('\n')
+  return suggestions
 }
 
 /**
- * Find the line number where the suggestion should be applied
+ * Find line numbers for each suggestion
  */
-function findSuggestionLineNumber(
+function findSuggestionLineNumbers(
   originalContent: string,
   rewrittenContent: string
-): number {
+): number[] {
   const originalLines = originalContent.split('\n')
   const rewrittenLines = rewrittenContent.split('\n')
+  const lineNumbers: number[] = []
 
   // Find the first line that differs
   for (
@@ -72,12 +73,16 @@ function findSuggestionLineNumber(
     i++
   ) {
     if (originalLines[i] !== rewrittenLines[i]) {
-      return i + 1 // GitHub uses 1-based line numbers
+      lineNumbers.push(i + 1) // GitHub uses 1-based line numbers
     }
   }
 
-  // If no difference found in existing lines, return the line after the last line
-  return originalLines.length + 1
+  // If no difference found in existing lines, add line after the last line
+  if (lineNumbers.length === 0) {
+    lineNumbers.push(originalLines.length + 1)
+  }
+
+  return lineNumbers
 }
 
 /**
@@ -110,35 +115,40 @@ export async function createCommitSuggestions(
         continue
       }
 
-      // Convert diff to suggestion
-      const suggestion = diffToSuggestion(diff)
+      // Convert diff to suggestions
+      const individualSuggestions = diffToSuggestions(diff)
 
-      if (!suggestion.trim()) {
+      if (individualSuggestions.length === 0) {
         continue
       }
 
-      // Find line number for suggestion
-      const lineNumber = findSuggestionLineNumber(
+      // Find line numbers for each suggestion
+      const lineNumbers = findSuggestionLineNumbers(
         originalContent,
         result.rewrite
       )
 
-      core.info(
-        `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
-      )
+      for (let i = 0; i < individualSuggestions.length; i++) {
+        const suggestion = individualSuggestions[i]
+        const lineNumber = lineNumbers[i]
 
-      suggestions.push({
-        filePath: result.filePath,
-        originalContent,
-        rewrittenContent: result.rewrite,
-        diff,
-        lineNumber,
-        suggestion
-      })
+        core.info(
+          `Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`
+        )
 
-      core.info(
-        `✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`
-      )
+        suggestions.push({
+          filePath: result.filePath,
+          originalContent,
+          rewrittenContent: result.rewrite,
+          diff,
+          lineNumber,
+          suggestion
+        })
+
+        core.info(
+          `✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`
+        )
+      }
     } catch (error) {
       core.warning(
         `Failed to create suggestion for ${result.filePath}: ${error}`

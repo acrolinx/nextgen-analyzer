@@ -34435,33 +34435,37 @@ function generateDiff(originalContent, rewrittenContent) {
         .join('');
 }
 /**
- * Convert diff to GitHub suggestion format
+ * Convert diff to individual line suggestions
  */
-function diffToSuggestion(diff) {
+function diffToSuggestions(diff) {
     const lines = diff.split('\n');
     const suggestions = [];
     for (const line of lines) {
         if (line.startsWith('+') && !line.startsWith('++')) {
-            // This is an addition, suggest it
+            // This is an addition, create a separate suggestion for it
             suggestions.push(line.substring(1));
         }
     }
-    return suggestions.join('\n');
+    return suggestions;
 }
 /**
- * Find the line number where the suggestion should be applied
+ * Find line numbers for each suggestion
  */
-function findSuggestionLineNumber(originalContent, rewrittenContent) {
+function findSuggestionLineNumbers(originalContent, rewrittenContent) {
     const originalLines = originalContent.split('\n');
     const rewrittenLines = rewrittenContent.split('\n');
+    const lineNumbers = [];
     // Find the first line that differs
     for (let i = 0; i < Math.min(originalLines.length, rewrittenLines.length); i++) {
         if (originalLines[i] !== rewrittenLines[i]) {
-            return i + 1; // GitHub uses 1-based line numbers
+            lineNumbers.push(i + 1); // GitHub uses 1-based line numbers
         }
     }
-    // If no difference found in existing lines, return the line after the last line
-    return originalLines.length + 1;
+    // If no difference found in existing lines, add line after the last line
+    if (lineNumbers.length === 0) {
+        lineNumbers.push(originalLines.length + 1);
+    }
+    return lineNumbers;
 }
 /**
  * Create commit suggestions from Acrolinx analysis results
@@ -34485,23 +34489,27 @@ async function createCommitSuggestions(results) {
             if (!diff.trim()) {
                 continue;
             }
-            // Convert diff to suggestion
-            const suggestion = diffToSuggestion(diff);
-            if (!suggestion.trim()) {
+            // Convert diff to suggestions
+            const individualSuggestions = diffToSuggestions(diff);
+            if (individualSuggestions.length === 0) {
                 continue;
             }
-            // Find line number for suggestion
-            const lineNumber = findSuggestionLineNumber(originalContent, result.rewrite);
-            coreExports.info(`Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`);
-            suggestions.push({
-                filePath: result.filePath,
-                originalContent,
-                rewrittenContent: result.rewrite,
-                diff,
-                lineNumber,
-                suggestion
-            });
-            coreExports.info(`✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`);
+            // Find line numbers for each suggestion
+            const lineNumbers = findSuggestionLineNumbers(originalContent, result.rewrite);
+            for (let i = 0; i < individualSuggestions.length; i++) {
+                const suggestion = individualSuggestions[i];
+                const lineNumber = lineNumbers[i];
+                coreExports.info(`Processing suggestion for ${result.filePath}: line ${lineNumber}, suggestion length: ${suggestion.length}`);
+                suggestions.push({
+                    filePath: result.filePath,
+                    originalContent,
+                    rewrittenContent: result.rewrite,
+                    diff,
+                    lineNumber,
+                    suggestion
+                });
+                coreExports.info(`✅ Generated suggestion for ${result.filePath} at line ${lineNumber}`);
+            }
         }
         catch (error) {
             coreExports.warning(`Failed to create suggestion for ${result.filePath}: ${error}`);
