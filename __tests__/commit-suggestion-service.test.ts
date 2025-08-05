@@ -45,9 +45,9 @@ describe('Commit Suggestion Service', () => {
         {
           filePath: 'test.md',
           result: {
-            quality: { score: 85 },
+            quality: { score: 80 },
             clarity: {
-              score: 90,
+              score: 85,
               word_count: 100,
               sentence_count: 10,
               average_sentence_length: 10,
@@ -57,7 +57,7 @@ describe('Commit Suggestion Service', () => {
               lexical_diversity: 10,
               sentence_complexity: 10
             },
-            tone: { score: 88, informality: 10, liveliness: 10 },
+            tone: { score: 90, informality: 10, liveliness: 10 },
             style_guide: { score: 88, issues: 1 },
             terminology: { score: 95, issues: 0 },
             grammar: { score: 90, issues: 1 }
@@ -68,20 +68,45 @@ describe('Commit Suggestion Service', () => {
       ]
 
       const suggestions = await createCommitSuggestions(mockResults)
-
       expect(suggestions).toHaveLength(0)
+    })
+
+    it('should handle files with rewrite content', async () => {
+      const mockResults: AcrolinxAnalysisResult[] = [
+        {
+          filePath: 'test.md',
+          result: {
+            quality: { score: 80 },
+            clarity: {
+              score: 85,
+              word_count: 100,
+              sentence_count: 10,
+              average_sentence_length: 10,
+              flesch_reading_ease: 10,
+              vocabulary_complexity: 10,
+              flesch_kincaid_grade: 10,
+              lexical_diversity: 10,
+              sentence_complexity: 10
+            },
+            tone: { score: 90, informality: 10, liveliness: 10 },
+            style_guide: { score: 88, issues: 1 },
+            terminology: { score: 95, issues: 0 },
+            grammar: { score: 90, issues: 1 }
+          },
+          timestamp: '2024-01-01T00:00:00Z',
+          rewrite: 'new content'
+        }
+      ]
+
+      const suggestions = await createCommitSuggestions(mockResults)
+      expect(suggestions).toBeDefined()
     })
   })
 
   describe('pending review handling', () => {
     it('should handle existing pending reviews gracefully', async () => {
-      // This test verifies that the service can handle the case where
-      // there are existing pending reviews without throwing errors
       const mockResults: AcrolinxAnalysisResult[] = []
-
-      // The service should handle empty results without issues
       const suggestions = await createCommitSuggestions(mockResults)
-
       expect(suggestions).toHaveLength(0)
     })
   })

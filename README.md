@@ -198,8 +198,8 @@ improvements with a single click.
   submitted to make room for new ones
 - **Single Review Creation**: All suggestions are created in one pending review
   for better user experience
-- **Individual Line Suggestions**: Each modified line gets its own suggestion
-  for granular control
+- **Chunked Line Suggestions**: Continuous modified lines are grouped into
+  single suggestions for better readability
 - **Error Handling**: Graceful handling of API limits and permission issues
 - **Event-Specific**: Only creates suggestions for pull request events
 

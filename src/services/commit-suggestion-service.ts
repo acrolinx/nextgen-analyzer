@@ -44,12 +44,33 @@ function generateDiff(
 function diffToSuggestions(diff: string): string[] {
   const lines = diff.split('\n')
   const suggestions: string[] = []
+  let currentSuggestion: string[] = []
+  let inAddition = false
 
   for (const line of lines) {
     if (line.startsWith('+') && !line.startsWith('++')) {
-      // This is an addition, create a separate suggestion for it
-      suggestions.push(line.substring(1))
+      // Start or continue an addition block
+      if (!inAddition) {
+        inAddition = true
+        currentSuggestion = []
+      }
+      currentSuggestion.push(line.substring(1))
+    } else if (line.startsWith('-') && !line.startsWith('--')) {
+      // Skip deletions, they're handled by the diff context
+      continue
+    } else if (line.startsWith('@') || line.startsWith(' ')) {
+      // Context line or diff header - end current suggestion if we have one
+      if (inAddition && currentSuggestion.length > 0) {
+        suggestions.push(currentSuggestion.join('\n'))
+        currentSuggestion = []
+        inAddition = false
+      }
     }
+  }
+
+  // Don't forget the last suggestion if we're still in an addition block
+  if (inAddition && currentSuggestion.length > 0) {
+    suggestions.push(currentSuggestion.join('\n'))
   }
 
   return suggestions
@@ -66,18 +87,26 @@ function findSuggestionLineNumbers(
   const rewrittenLines = rewrittenContent.split('\n')
   const lineNumbers: number[] = []
 
-  // Find the first line that differs
-  for (
-    let i = 0;
-    i < Math.min(originalLines.length, rewrittenLines.length);
-    i++
-  ) {
+  let i = 0
+  while (i < Math.min(originalLines.length, rewrittenLines.length)) {
     if (originalLines[i] !== rewrittenLines[i]) {
-      lineNumbers.push(i + 1) // GitHub uses 1-based line numbers
+      // Find the start of this continuous change
+      const startLine = i + 1
+      lineNumbers.push(startLine)
+
+      // Skip to the end of this continuous change
+      while (
+        i < Math.min(originalLines.length, rewrittenLines.length) &&
+        originalLines[i] !== rewrittenLines[i]
+      ) {
+        i++
+      }
+    } else {
+      i++
     }
   }
 
-  // If no difference found in existing lines, add line after the last line
+  // If no changes found, add line after the last line
   if (lineNumbers.length === 0) {
     lineNumbers.push(originalLines.length + 1)
   }
