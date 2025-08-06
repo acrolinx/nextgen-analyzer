@@ -34299,8 +34299,9 @@ async function createRewriteBranch(octokit, config, files, readFileContent) {
             await createBranchFromBase(octokit, owner, repo, branchName, headBranch);
         }
         else {
-            // Branch exists, just apply the changes directly
-            coreExports.info(`Branch ${branchName} already exists, applying changes directly`);
+            // Branch exists, rebase it to the latest state of the head branch to avoid conflicts
+            coreExports.info(`Branch ${branchName} already exists, rebasing to latest state`);
+            await rebaseBranchToLatest(octokit, owner, repo, branchName, headBranch);
         }
         // Apply rewritten files to the branch
         await applyRewrittenFiles(octokit, owner, repo, branchName, rewrittenFiles);
@@ -34360,6 +34361,31 @@ async function forceDeleteBranch(octokit, owner, repo, branchName) {
     }
     catch (error) {
         coreExports.warning(`Failed to force delete branch reference for ${branchName}: ${error}`);
+    }
+}
+/**
+ * Rebase a branch to the latest state of the head branch
+ */
+async function rebaseBranchToLatest(octokit, owner, repo, branchName, headBranch) {
+    try {
+        // Get the latest commit SHA from the head branch
+        const headRef = await octokit.rest.repos.getBranch({
+            owner,
+            repo,
+            branch: headBranch
+        });
+        // Update the rewrite branch to point to the latest head commit
+        await octokit.rest.git.updateRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branchName}`,
+            sha: headRef.data.commit.sha
+        });
+        coreExports.info(`✅ Rebased branch ${branchName} to latest state of ${headBranch}`);
+    }
+    catch (error) {
+        logError(error, `Failed to rebase branch ${branchName} to latest state`);
+        throw error;
     }
 }
 /**
