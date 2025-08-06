@@ -130,7 +130,22 @@ jest.unstable_mockModule('@acrolinx/typescript-sdk', () => ({
       startTime: Date.now()
     }),
     cancel: jest.fn()
-  }))
+  })),
+  styleRewrite: jest.fn(() =>
+    Promise.resolve({
+      status: 'completed',
+      scores: {
+        quality: { score: 85.2 },
+        clarity: { score: 78.5 },
+        grammar: { score: 90.1, issues: 2 },
+        style_guide: { score: 88.3, issues: 1 },
+        tone: { score: 82.3 },
+        terminology: { score: 95.0, issues: 0 }
+      },
+      rewrite: 'Improved content from Acrolinx'
+    })
+  ),
+  Config: jest.fn()
 }))
 
 // Mock fs/promises

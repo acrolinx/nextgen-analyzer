@@ -24,7 +24,8 @@ export async function handlePostAnalysisActions(
   eventInfo: EventInfo,
   results: AcrolinxAnalysisResult[],
   config: { githubToken: string; addCommitStatus: boolean },
-  analysisOptions: ReturnType<typeof getAnalysisOptions>
+  analysisOptions: ReturnType<typeof getAnalysisOptions>,
+  rewritePrUrl?: string
 ): Promise<void> {
   if (results.length === 0) {
     core.info('No results to process for post-analysis actions.')
@@ -82,7 +83,8 @@ export async function handlePostAnalysisActions(
               prNumber,
               results,
               config: analysisOptions,
-              eventType: eventInfo.eventType
+              eventType: eventInfo.eventType,
+              rewritePrUrl
             })
           } catch (error) {
             core.error(`Failed to create PR comment: ${error}`)

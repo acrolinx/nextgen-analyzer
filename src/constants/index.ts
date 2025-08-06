@@ -25,7 +25,8 @@ export const INPUT_NAMES = {
   TONE: 'tone',
   STYLE_GUIDE: 'style-guide',
   GITHUB_TOKEN: 'github_token',
-  ADD_COMMIT_STATUS: 'add_commit_status'
+  ADD_COMMIT_STATUS: 'add_commit_status',
+  REWRITE: 'rewrite'
 } as const
 
 /**

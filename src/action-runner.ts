@@ -27,6 +27,12 @@ import {
 } from './utils/index.js'
 import { logError } from './utils/error-utils.js'
 import { handlePostAnalysisActions } from './services/post-analysis-service.js'
+import {
+  createRewriteBranch,
+  createRewritePullRequest
+} from './services/rewrite-service.js'
+import { createGitHubClient } from './services/github-service.js'
+import { isPullRequestEvent } from './services/pr-comment-service.js'
 
 /**
  * Set GitHub Action outputs
@@ -130,6 +136,59 @@ export async function runAction(): Promise<void> {
 
     // Handle post-analysis actions based on event type
     await handlePostAnalysisActions(eventInfo, results, config, analysisOptions)
+
+    // Handle rewrite functionality for pull requests
+    if (
+      config.enableRewrite &&
+      isPullRequestEvent() &&
+      supportedFiles.length > 0
+    ) {
+      displaySectionHeader('🤖 Processing Acrolinx Rewrites')
+
+      try {
+        const octokit = createGitHubClient(config.githubToken)
+
+        // Create rewrite branch
+        const rewriteData = await createRewriteBranch(
+          octokit,
+          config,
+          supportedFiles,
+          readFileContent
+        )
+
+        if (rewriteData) {
+          core.info(`✅ Created rewrite branch: ${rewriteData.branchName}`)
+
+          // Create pull request for rewrite
+          const rewritePrUrl = await createRewritePullRequest(
+            octokit,
+            rewriteData
+          )
+
+          if (rewritePrUrl) {
+            core.info(`✅ Created rewrite PR: ${rewritePrUrl}`)
+
+            // Update the post-analysis actions to include rewrite PR URL
+            await handlePostAnalysisActions(
+              eventInfo,
+              results,
+              config,
+              analysisOptions,
+              rewritePrUrl
+            )
+          }
+        } else {
+          core.info(
+            'No rewrite branch created (branch may already exist or no files to rewrite)'
+          )
+        }
+      } catch (error) {
+        logError(error, 'Failed to process Acrolinx rewrites')
+        core.warning(
+          'Rewrite functionality failed, but analysis completed successfully'
+        )
+      }
+    }
   } catch (error) {
     handleError(error)
   }
