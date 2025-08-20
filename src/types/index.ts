@@ -26,7 +26,7 @@ export interface FileChange {
 }
 
 // Import types from Acrolinx SDK first
-import type { StyleScores } from '@acrolinx/nextgen-toolkit'
+import type { StyleScores } from '@markupai/toolkit'
 
 /**
  * Interface for Acrolinx analysis result
@@ -77,4 +77,4 @@ export interface AnalysisOptions {
 }
 
 // Re-export types from Acrolinx SDK
-export type { StyleAnalysisReq, Config } from '@acrolinx/nextgen-toolkit'
+export type { StyleAnalysisReq, Config } from '@markupai/toolkit'
