@@ -109,24 +109,60 @@ describe('Score Utils', () => {
         {
           filePath: 'file1.md',
           result: {
-            quality: { score: 85 },
-            clarity: { score: 78 },
-            grammar: { score: 90, issues: 2 },
-            style_guide: { score: 88, issues: 1 },
-            tone: { score: 82 },
-            terminology: { score: 95, issues: 0 }
+            quality: {
+              score: 85,
+              grammar: { score: 90, issues: 2 },
+              style_guide: { score: 88, issues: 1 },
+              terminology: { score: 95, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 78,
+                word_count: 100,
+                sentence_count: 5,
+                average_sentence_length: 20,
+                flesch_reading_ease: 70,
+                vocabulary_complexity: 0.5,
+                sentence_complexity: 0.4
+              },
+              tone: {
+                score: 82,
+                informality: 0,
+                liveliness: 0,
+                informality_alignment: 0,
+                liveliness_alignment: 0
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         },
         {
           filePath: 'file2.md',
           result: {
-            quality: { score: 90 },
-            clarity: { score: 85 },
-            grammar: { score: 88, issues: 1 },
-            style_guide: { score: 92, issues: 0 },
-            tone: { score: 87 },
-            terminology: { score: 89, issues: 1 }
+            quality: {
+              score: 90,
+              grammar: { score: 88, issues: 1 },
+              style_guide: { score: 92, issues: 0 },
+              terminology: { score: 89, issues: 1 }
+            },
+            analysis: {
+              clarity: {
+                score: 85,
+                word_count: 100,
+                sentence_count: 5,
+                average_sentence_length: 20,
+                flesch_reading_ease: 70,
+                vocabulary_complexity: 0.5,
+                sentence_complexity: 0.4
+              },
+              tone: {
+                score: 87,
+                informality: 0,
+                liveliness: 0,
+                informality_alignment: 0,
+                liveliness_alignment: 0
+              }
+            }
           },
           timestamp: '2024-01-15T10:35:00Z'
         }
@@ -164,12 +200,30 @@ describe('Score Utils', () => {
         {
           filePath: 'file1.md',
           result: {
-            quality: { score: 85 },
-            clarity: { score: 78 },
-            grammar: { score: 90 }, // Missing issues
-            style_guide: { score: 88 }, // Missing issues
-            tone: { score: 82 },
-            terminology: { score: 95 } // Missing issues
+            quality: {
+              score: 85,
+              grammar: { score: 90, issues: 2 }, // Missing issues
+              style_guide: { score: 88, issues: 1 }, // Missing issues
+              terminology: { score: 95, issues: 0 } // Missing issues
+            },
+            analysis: {
+              clarity: {
+                score: 78,
+                word_count: 100,
+                sentence_count: 5,
+                average_sentence_length: 20,
+                flesch_reading_ease: 70,
+                vocabulary_complexity: 0.5,
+                sentence_complexity: 0.4
+              },
+              tone: {
+                score: 82,
+                informality: 0,
+                liveliness: 0,
+                informality_alignment: 0,
+                liveliness_alignment: 0
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         }
@@ -193,12 +247,30 @@ describe('Score Utils', () => {
         {
           filePath: 'file1.md',
           result: {
-            quality: { score: 85 },
-            clarity: { score: 78 },
-            grammar: { score: 90, issues: 2 },
-            style_guide: { score: 88, issues: 1 },
-            tone: { score: 82 },
-            terminology: { score: 95, issues: 0 }
+            quality: {
+              score: 85,
+              grammar: { score: 90, issues: 2 },
+              style_guide: { score: 88, issues: 1 },
+              terminology: { score: 95, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 78,
+                word_count: 100,
+                sentence_count: 5,
+                average_sentence_length: 20,
+                flesch_reading_ease: 70,
+                vocabulary_complexity: 0.5,
+                sentence_complexity: 0.4
+              },
+              tone: {
+                score: 82,
+                informality: 0,
+                liveliness: 0,
+                informality_alignment: 0,
+                liveliness_alignment: 0
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         }
@@ -222,12 +294,30 @@ describe('Score Utils', () => {
         {
           filePath: 'file1.md',
           result: {
-            quality: { score: 85.5 },
-            clarity: { score: 78.25 },
-            grammar: { score: 90.75, issues: 2 },
-            style_guide: { score: 88.5, issues: 1 },
-            tone: { score: 82.25 },
-            terminology: { score: 95.75, issues: 0 }
+            quality: {
+              score: 85.5,
+              grammar: { score: 90.75, issues: 2 },
+              style_guide: { score: 88.5, issues: 1 },
+              terminology: { score: 95.75, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 78.25,
+                word_count: 100,
+                sentence_count: 5,
+                average_sentence_length: 20,
+                flesch_reading_ease: 70,
+                vocabulary_complexity: 0.5,
+                sentence_complexity: 0.4
+              },
+              tone: {
+                score: 82.25,
+                informality: 0,
+                liveliness: 0,
+                informality_alignment: 0,
+                liveliness_alignment: 0
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         }
