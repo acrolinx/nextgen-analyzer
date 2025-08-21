@@ -87,12 +87,34 @@ describe('Display Utils', () => {
         {
           filePath: 'test.md',
           result: {
-            quality: { score: 85 },
-            clarity: { score: 78 },
-            grammar: { score: 90 },
-            style_guide: { score: 88 },
-            tone: { score: 82 },
-            terminology: { score: 95 }
+            quality: {
+              score: 85,
+              grammar: { score: 90, issues: 0 },
+              style_guide: { score: 88, issues: 0 },
+              terminology: { score: 95, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 78,
+                word_count: 100,
+                sentence_count: 10,
+                average_sentence_length: 10,
+                flesch_reading_ease: 80,
+                vocabulary_complexity: 8,
+                sentence_complexity: 8,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              },
+              tone: {
+                score: 82,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         }
@@ -116,24 +138,68 @@ describe('Display Utils', () => {
         {
           filePath: 'file1.md',
           result: {
-            quality: { score: 85 },
-            clarity: { score: 78 },
-            grammar: { score: 90 },
-            style_guide: { score: 88 },
-            tone: { score: 82 },
-            terminology: { score: 95 }
+            quality: {
+              score: 85,
+              grammar: { score: 90, issues: 0 },
+              style_guide: { score: 88, issues: 0 },
+              terminology: { score: 95, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 78,
+                word_count: 100,
+                sentence_count: 10,
+                average_sentence_length: 10,
+                flesch_reading_ease: 80,
+                vocabulary_complexity: 8,
+                sentence_complexity: 8,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              },
+              tone: {
+                score: 82,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         },
         {
           filePath: 'file2.md',
           result: {
-            quality: { score: 92 },
-            clarity: { score: 85 },
-            grammar: { score: 88 },
-            style_guide: { score: 90 },
-            tone: { score: 87 },
-            terminology: { score: 93 }
+            quality: {
+              score: 92,
+              grammar: { score: 88, issues: 0 },
+              style_guide: { score: 90, issues: 0 },
+              terminology: { score: 93, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 85,
+                word_count: 100,
+                sentence_count: 10,
+                average_sentence_length: 10,
+                flesch_reading_ease: 80,
+                vocabulary_complexity: 8,
+                sentence_complexity: 8,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              },
+              tone: {
+                score: 87,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              }
+            }
           },
           timestamp: '2024-01-15T10:31:00Z'
         }
@@ -182,12 +248,34 @@ describe('Display Utils', () => {
         {
           filePath: 'file1.md',
           result: {
-            quality: { score: 85 },
-            clarity: { score: 78 },
-            grammar: { score: 90 },
-            style_guide: { score: 88 },
-            tone: { score: 82 },
-            terminology: { score: 95 }
+            quality: {
+              score: 85,
+              grammar: { score: 90, issues: 0 },
+              style_guide: { score: 88, issues: 0 },
+              terminology: { score: 95, issues: 0 }
+            },
+            analysis: {
+              clarity: {
+                score: 78,
+                word_count: 100,
+                sentence_count: 10,
+                average_sentence_length: 10,
+                flesch_reading_ease: 80,
+                vocabulary_complexity: 8,
+                sentence_complexity: 8,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              },
+              tone: {
+                score: 82,
+                informality: 0.5,
+                liveliness: 0.5,
+                informality_alignment: 0.5,
+                liveliness_alignment: 0.5
+              }
+            }
           },
           timestamp: '2024-01-15T10:30:00Z'
         }
